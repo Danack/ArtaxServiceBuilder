@@ -1,0 +1,30 @@
+{
+    "name": "danack/artaxapibuilder",
+
+
+    "repositories": [
+        {
+            "packagist": false
+        },
+        { 
+            "type": "composer", 
+             "url": "http://satis.basereality.com"
+        }
+    ],
+
+    "require-dev": {
+        "fzaninotto/faker": "*",
+        "mockery/mockery": "0.9.1",
+        "phpunit/phpunit": "4.1.3",
+        "danack/auryn": "~0.9.5",
+        "rdlowrey/artax": "dev-master as 0.7.0"
+    },
+    "require":{
+        "Danack/danack-code": ">=2.4.1"
+    },
+    "autoload": {
+        "psr-0": {
+            "ArtaxApiBuilder": "src/"
+        }
+    }
+}
