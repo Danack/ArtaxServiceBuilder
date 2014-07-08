@@ -1,7 +1,7 @@
 <?php
 
 
-namespace BaseReality\ArtaxBuilder;
+namespace ArtaxApiBuilder;
 
 
 interface Operation {

@@ -15,6 +15,9 @@ use Danack\Code\Generator\PropertyGenerator;
 class OperationGenerator {
 
     private $className;
+    /**
+     * @var OperationDefinition
+     */
     private $operation;
     private $outputPath;
     private $namespace;
@@ -25,12 +28,17 @@ class OperationGenerator {
      */
     private $classGenerator;
 
-    private $apiGenerator;
-    
     /**
+     * @var APIGenerator
+     */
+    private $apiGenerator;
+
+    /**
+     * @param $namespace
      * @param $className
      * @param OperationDefinition $operation
      * @param $outputPath
+     * @param APIGenerator $api
      */
     function __construct(
         $namespace,
@@ -48,6 +56,9 @@ class OperationGenerator {
     }
 
 
+    /**
+     * @param $apiFQCN
+     */
     function setAPIClassname($apiFQCN) {
         $this->apiClassname = $apiFQCN;
     }
@@ -90,9 +101,7 @@ class OperationGenerator {
         $methodGenerator = new MethodGenerator('setParams');
         $parameterGenerator = new ParameterGenerator('params', 'array');
         $methodGenerator->setParameter($parameterGenerator);
-
         $body = '';
-
         foreach($this->operation->getParameters() as $parameter) {
             $paramName = $parameter->getName();
             $translatedParam = $this->apiGenerator->translateParameter($paramName);
@@ -106,7 +115,6 @@ END;
         }
 
         $methodGenerator->setBody($body);
-
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
     
@@ -137,8 +145,6 @@ END;
      */
     private function addConstructorMethod() {
         $requiredParameters = $this->operation->getRequiredParams();
-
-        $body = '';
         $methodGenerator = new MethodGenerator('__construct');
         $defaultParams = $this->operation->getDefaultParams();
 
@@ -164,7 +170,7 @@ END;
             $constructorParams[] = $param->getName();
         }
 
-        $apiParameters = $this->apiGenerator->getAPIParameters()
+        $apiParameters = $this->apiGenerator->getAPIParameters();
         
         foreach ($requiredParameters as $param) {
             if (in_array($param->getName(), $apiParameters) == true) {
@@ -186,19 +192,31 @@ END;
 
     }
 
-
     /**
      * 
      */
     function addExecuteMethod() {
-
         $methodGenerator = new MethodGenerator('execute');
-        
         $url = $this->operation->getURL();
-
         $body = '';
         $body .= sprintf('$url = "%s";'.PHP_EOL, addslashes($url));
-        $body .= '$response = $this->api->callAPI($url, $this->parameters);'.PHP_EOL;
+        $body .= '$apiParams = [];'.PHP_EOL;
+        $apiParameters = $this->apiGenerator->getAPIParameters();
+
+        foreach ($this->operation->getParameters() as $operationParameter) {
+            foreach ($apiParameters as $apiParameter) {
+                if ($apiParameter === $operationParameter->getName()) {
+                    $body .= sprintf(
+                        "\$apiParams['%s'] = \$this->api->get%s();",
+                        $apiParameter,
+                        $apiParameter
+                    ).PHP_EOL;
+                }
+            }
+        }
+
+        $body .= '$callParameters = array_merge($apiParams, $this->parameters);'.PHP_EOL;
+        $body .= '$response = $this->api->callAPI($url, $callParameters);'.PHP_EOL;
 
         $responseClass = $this->operation->getResponseClass();
         $responseFactory = $this->operation->getResponseFactory();
@@ -239,7 +257,7 @@ END;
     }
 
     /**
-     * @throws \BaseReality\FlickrAPI\APIBuilderException
+     * @throws \ArtaxApiBuilder\APIBuilderException
      */
     function generate() {
 
@@ -259,7 +277,7 @@ END;
         $this->addOptionalParamMethods();
         $this->addExecuteMethod();
 
-        $this->classGenerator->setImplementedInterfaces(['BaseReality\ArtaxBuilder\Operation']);
+        $this->classGenerator->setImplementedInterfaces(['ArtaxApiBuilder\Operation']);
         $this->classGenerator->setFQCN($fqcn);
         $text = $this->classGenerator->generate();
         saveFile($this->outputPath, $fqcn, $text);

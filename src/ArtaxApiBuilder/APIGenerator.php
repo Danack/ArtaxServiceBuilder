@@ -36,31 +36,7 @@ END;
     }
 }
 
-function getNamespace($namespaceClass) {
 
-    if (is_object($namespaceClass)) {
-        $namespaceClass = get_class($namespaceClass);
-    }
-
-    $lastSlashPosition = mb_strrpos($namespaceClass, '\\');
-
-    if ($lastSlashPosition !== false) {
-        return mb_substr($namespaceClass, 0, $lastSlashPosition);
-    }
-
-    return "";
-}
-
-
-function getClassName($namespaceClass) {
-    $lastSlashPosition = mb_strrpos($namespaceClass, '\\');
-
-    if ($lastSlashPosition !== false) {
-        return mb_substr($namespaceClass, $lastSlashPosition + 1);
-    }
-
-    return $namespaceClass;
-}
 
 
 
@@ -73,7 +49,8 @@ class APIGenerator {
     private $outputPath;
     private $namespace;
     private $parameterTranslations = [];
-    private $apiParameters;
+
+    private $apiParameters = [];
 
     /**
      * Fully qualified classname - aka namespace + classname
@@ -101,7 +78,7 @@ class APIGenerator {
     private $normalizeClassCallable = null;
 
     /**
-     * @var \BaseReality\ArtaxBuilder\OperationDefinition[]
+     * @var \ArtaxApiBuilder\OperationDefinition[]
      */
     private $operations = [];
 
@@ -124,6 +101,7 @@ class APIGenerator {
     function getAPIParameters() {
         return $this->apiParameters;
     }
+
 
     /**
      * @param $interface
@@ -194,8 +172,36 @@ class APIGenerator {
         $methodGenerator->setBody($this->getCallBody());
         $this->generator->addMethodFromGenerator($methodGenerator);
     }
+    
+    function addPrepareMethod() {
+        $methodGenerator = new MethodGenerator('prepareAPI');
+        $methodGenerator->setParameters(['url', 'parameters']);
+        $methodGenerator->setBody($this->getPrepareBody());
+        $this->generator->addMethodFromGenerator($methodGenerator);
+    }
 
 
+    /**
+     * @return string
+     */
+    function getPrepareBody() {
+
+        $body = <<< 'END'
+
+$client = new \Artax\Client();
+
+$client->setOption('transfertimeout', 25);
+$request = new \Artax\Request();
+$fullURL = $url.'?'.http_build_query($parameters, '', '&', PHP_QUERY_RFC3986);
+$request->setUri($fullURL);
+
+return $request;
+END;
+        
+        return $body;
+    }
+    
+    
     /**
      * @return string
      */
@@ -372,15 +378,14 @@ END;
         $exceptionClassname = $classname.'Exception';
 
         if ($namespace) {
-            $fqExceptionClassname = $namespace.'\\'.$classname;
+            $fqExceptionClassname = $namespace.'\\'.$classname.'Exception';
         }
         else {
-            $fqExceptionClassname = $classname;
+            $fqExceptionClassname = $classname.'Exception';
         }
         
 
 $classText = <<< END
-<?php
 
 namespace $namespace;
 
@@ -476,7 +481,7 @@ END;
 
         $operation->setName($operationName);
         $operation->setURL($baseURL);//Do this first, as it can be overwritten
-        $operation->setFromServiceDescription($operationDescription);
+        $operation->setFromServiceDescription($operationDescription, $this);
 
         return $operation;
     }
@@ -513,12 +518,34 @@ END;
 
 
     /**
+     * 
+     */
+    function addAPIParameterAccessMethod() {
+
+        foreach ($this->apiParameters as $apiParameter) {
+            $methodGenerator = new MethodGenerator('get'.$apiParameter);
+            $body = 'return $this->'.$apiParameter.';'.PHP_EOL;
+            $methodGenerator->setBody($body);
+            $this->generator->addMethodFromGenerator($methodGenerator);
+
+            $methodGenerator = new MethodGenerator('set'.$apiParameter);
+            $body = '$this->'.$apiParameter.' = $value;'.PHP_EOL;
+            $parameterParameter = new ParameterGenerator('value');
+            $methodGenerator->setParameter($parameterParameter);
+            $methodGenerator->setBody($body);
+            $this->generator->addMethodFromGenerator($methodGenerator);
+        }
+    }
+
+
+    /**
      *
      */
     function generate() {        
         $this->sanityCheck();
         $this->addCallMethod();
         $this->generateMethods();
+        $this->addAPIParameterAccessMethod();
         $this->generateOperationGetters();
 
         if (count($this->interfaces)) {

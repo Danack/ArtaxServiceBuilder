@@ -103,7 +103,7 @@ class OperationDefinition {
 
     /**
      * Get all the params that have a default value
-     * @return \BaseReality\ArtaxBuilder\Parameter[]
+     * @return \ArtaxApiBuilder\Parameter[]
      */
     public function getDefaultParams() {
         $defaultParams = [];

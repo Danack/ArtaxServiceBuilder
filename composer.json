@@ -8,7 +8,15 @@
         },
         { 
             "type": "composer", 
-             "url": "http://satis.basereality.com"
+            "url": "http://satis.basereality.com"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/rdlowrey/Artax"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/Danack/Auryn"
         }
     ],
 

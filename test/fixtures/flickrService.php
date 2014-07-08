@@ -2202,7 +2202,7 @@ More information about the pandas can be found on the <a href="http://code.flick
 			'extends' => 'defaultGetOperation',
 			'summary' => 'Return photos from the given user\'s photostream. Only photos visible to the calling user will be returned. This method must be authenticated; to return public photos for a user, use <a href="/services/api/flickr.people.getPublicPhotos.html">flickr.people.getPublicPhotos</a>.',
 			'needsSigning' => true,
-			"responseClass" => "Intahwebz\\FlickrGuzzle\\DTO\\PhotoList",
+			"responseClass" => "AABTest\\PhotoList",
 			'parameters' => array(
 				'user_id'    => array(
 					'location' => 'query',
@@ -2357,7 +2357,7 @@ More information about the pandas can be found on the <a href="http://code.flick
 		"flickr.people.getPublicPhotos" => array(
 			'extends' => 'defaultGetOperation',
 			'summary' => 'Get a list of public photos for the given user.',
-			"responseClass" => "Intahwebz\\FlickrGuzzle\\DTO\\PhotoList",
+			"responseClass" => "AABTest\\PhotoList",
 			'parameters' => array(
 				'user_id'    => array(
 					'location' => 'query',
