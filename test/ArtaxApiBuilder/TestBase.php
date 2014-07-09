@@ -2,11 +2,17 @@
 
 namespace ArtaxApiBuilder;
 
+
+/**
+ * Class TestBase
+ * 
+ * Allows checking that no code has output characters, or left the output buffer in a bad state.
+ * 
+ * @package ArtaxApiBuilder
+ */
 class TestBase extends \PHPUnit_Framework_TestCase {
 
-
     private $startLevel = null;
-
 
     function setup() {
         $this->startLevel = ob_get_level();

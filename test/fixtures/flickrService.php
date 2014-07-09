@@ -51,7 +51,7 @@ return array (
 			"httpMethod" => "POST",
 			'uri' => 'http://api.flickr.com/services/upload/',
 			"summary" => "Uploads a photo.",
-			"responseClass" => "Intahwebz\\FlickrGuzzle\\DTO\\FileUploadResponse",
+			"responseClass" => "AABTest\\FileUploadResponse",
 
 			"parameters" => array(
 				'format' => array(
@@ -109,7 +109,7 @@ return array (
 			"httpMethod" => "POST",
 			'uri' => 'http://api.flickr.com/services/replace/',
 			"summary" => "Uploads a photo.",
-			"responseClass" => "Intahwebz\\FlickrGuzzle\\DTO\\FileUploadResponse",
+			"responseClass" => "AABTest\\FileUploadResponse",
 
 			"parameters" => array(
 				'format' => array(
@@ -2206,7 +2206,7 @@ More information about the pandas can be found on the <a href="http://code.flick
 			'parameters' => array(
 				'user_id'    => array(
 					'location' => 'query',
-					'description' => 'todo - describe variable',
+					'description' => 'Which user to get the photos of',
 				),
 				'safe_search'    => array(
 					'location' => 'query',
@@ -2361,7 +2361,7 @@ More information about the pandas can be found on the <a href="http://code.flick
 			'parameters' => array(
 				'user_id'    => array(
 					'location' => 'query',
-					'description' => 'todo - describe variable',
+					'description' => 'Which user to get the photos of',
 				),
 				'safe_search'    => array(
 					'location' => 'query',

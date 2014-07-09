@@ -3,10 +3,10 @@
 error_reporting(E_ALL);
 
 $autoloader = require __DIR__.'/../vendor/autoload.php';
-$currentDir = realpath(__DIR__)."/";
+$classDir = realpath(__DIR__)."/fixtures/";
 $outputDirectory = realpath(__DIR__).'/../var/src';
 
-$autoloader->add('AABTest', [$currentDir, $outputDirectory]);
+$autoloader->add('AABTest', [$classDir, $outputDirectory]);
 $autoloader->add('ArtaxApiBuilder', [realpath(__DIR__)."/"]);
 
 $included = include_once "../../flickrKey.php";

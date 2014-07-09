@@ -134,7 +134,7 @@ class OperationDefinition {
             foreach ($description["parameters"] as $paramName => $parameterDescription) {
                 $parameter = new Parameter($paramName);
                 if (isset($parameterDescription['location'])) {
-                    //$parameterDescription['location']
+                    $parameter->setLocation($parameterDescription['location']);
                 }
 
                 if (isset($parameterDescription['optional'])) {
@@ -145,11 +145,14 @@ class OperationDefinition {
                     $parameter->setDefault($parameterDescription['default']);
                 }
 
+                if (isset($parameterDescription['description'])) {
+                    $parameter->setDescription($parameterDescription['description']);
+                }
+
                 if (in_array($paramName, $api->getAPIParameters())) {
                     $parameter->setIsAPIParameter(true);
                 }
-                
-                
+
                 $this->parameters[] = $parameter;
             }
         }

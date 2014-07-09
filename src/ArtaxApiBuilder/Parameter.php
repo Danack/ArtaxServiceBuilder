@@ -11,10 +11,35 @@ class Parameter {
     private $isOptional;
     private $name;
     private $isAPIParameter;
+    private $description;
+    private $location;
     
     function __construct($name) {
         $this->name = $name;
         $this->isAPIParameter = false;
+    }
+
+    
+    function getDescription() {
+        return $this->description;
+    }
+
+    function setDescription($description) {
+        $this->description = $description;
+    }
+
+    /**
+     * @return string
+     */
+    public function getLocation() {
+        return $this->location;
+    }
+
+    /**
+     * @param string $location
+     */
+    public function setLocation($location) {
+        $this->location = $location;
     }
 
     /**

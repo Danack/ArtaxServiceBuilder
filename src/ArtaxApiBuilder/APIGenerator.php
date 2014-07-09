@@ -5,9 +5,13 @@ namespace ArtaxApiBuilder;
 
 
 use Danack\Code\Generator\ClassGenerator;
+use Danack\Code\Generator\GeneratorInterface;
+use Danack\Code\Generator\DocBlockGenerator;
+use Danack\Code\Generator\InterfaceGenerator;
 use Danack\Code\Generator\MethodGenerator;
 use Danack\Code\Generator\ParameterGenerator;
 
+use Danack\Code\Generator\DocBlock\Tag\GenericTag;
 
 /**
  * @param $savePath
@@ -46,11 +50,17 @@ class APIGenerator {
      * @var ClassGenerator
      */
     private $generator;
+    
+    private $interfaceGenerator;
+    
     private $outputPath;
     private $namespace;
     private $parameterTranslations = [];
 
     private $apiParameters = [];
+    
+    private $delimiter = '#';
+    
 
     /**
      * Fully qualified classname - aka namespace + classname
@@ -64,8 +74,13 @@ class APIGenerator {
      * @var string[] The interfaces the generated API class should implement
      */
     private $interfaces = [];
+    
+    private $interfaceName;
+    
 
     private $includeMethods = [];
+
+    private $excludeMethods = [];
 
     /**
      * @var callable
@@ -88,10 +103,12 @@ class APIGenerator {
      */
     function __construct($outputPath, $constructorParams) {
         $this->generator = new ClassGenerator();
+        $this->interfaceGenerator = new InterfaceGenerator(); 
         $this->constructorParams = $constructorParams;
         $this->addConstructorMethod();
         $this->outputPath = $outputPath;
     }
+
 
     /**
      * Get the list of parameters (by name) that should only exist at an API level, rather
@@ -141,7 +158,6 @@ class APIGenerator {
      * 
      */
     function addConstructorMethod() {
-        
         if (count($this->constructorParams)) {
             $methodGenerator = new MethodGenerator('__construct');
 
@@ -167,12 +183,16 @@ class APIGenerator {
      */
     function addCallMethod() {
         $methodGenerator = new MethodGenerator('callAPI');
+        $requestParam = new ParameterGenerator('request', 'Artax\Request');
         $successStatusParam = new ParameterGenerator('successStatuses', 'array', []);
-        $methodGenerator->setParameters(['url', 'parameters', $successStatusParam]);
+        $methodGenerator->setParameters([$requestParam, $successStatusParam]);
         $methodGenerator->setBody($this->getCallBody());
         $this->generator->addMethodFromGenerator($methodGenerator);
     }
-    
+
+    /**
+     * 
+     */
     function addPrepareMethod() {
         $methodGenerator = new MethodGenerator('prepareAPI');
         $methodGenerator->setParameters(['url', 'parameters']);
@@ -207,14 +227,17 @@ END;
      */
     function getCallBody() {
 
+//        $request = new \Artax\Request();
+//        $fullURL = $url.'?'.http_build_query($parameters, '', '&', PHP_QUERY_RFC3986);
+//        $request->setUri($fullURL);
+
+        
+        
         $body = <<< 'END'
 
 $client = new \Artax\Client();
 
 $client->setOption('transfertimeout', 25);
-$request = new \Artax\Request();
-$fullURL = $url.'?'.http_build_query($parameters, '', '&', PHP_QUERY_RFC3986);
-$request->setUri($fullURL);
 
 $response = $client->request($request);
 $status = $response->getStatus();
@@ -256,9 +279,9 @@ END;
     }
 
     /**
-     * 
+     * Add the methods that return the operations in the API.
      */
-    function generateOperationGetters() {
+    function addOperationGetters() {
         foreach ($this->operations as $methodName => $operation) {
 
             $operationName = $this->normalizeMethodName($methodName);
@@ -280,19 +303,29 @@ END;
 
             //Parameters which are set at the API level need to be passed into the
             //operation from the API
+            $tags = [];
             $apiParameters = $this->getAPIParameters();
             foreach ($requiredParameters as $param) {
                 if (in_array($param->getName(), $apiParameters) == true) {
                     $paramsStrings[] = $param->getName();
                 }
+                //TODO - allow type defining to work, rather than just mixed.
+                $tags[] = new GenericTag('param', ''.$param->getName().' mixed '.$param->getDescription());
             }
 
             $body = "\$instance = new $operationClassName($paramString);".PHP_EOL;
             $body .= "\$instance->setAPI(\$this);".PHP_EOL;
             $body .= "return \$instance;".PHP_EOL;
 
+            
+            $docBlockGenerator = new DocBlockGenerator($methodName);
+            $docBlockGenerator->setLongDescription($operation->getSummary());
+            $docBlockGenerator->setTags($tags);
+
+            $methodGenerator->setDocBlock($docBlockGenerator);
             $methodGenerator->setBody($body);
             $this->generator->addMethodFromGenerator($methodGenerator);
+            $this->interfaceGenerator->addMethodFromGenerator($methodGenerator);
         }
     }
 
@@ -310,13 +343,18 @@ END;
      * @return mixed
      */
     public function normalizeMethodName($methodName) {
-        
         if ($this->normalizeMethodCallable != null) {
             $callable = $this->normalizeMethodCallable;
             return $callable($methodName);
         }
-        
-        return str_replace('.', '_', $methodName);
+
+        $pattern = '/\.(\w?)/i';
+
+        $replaceCallable = function (array $matches) {
+            return strtoupper($matches[1]);
+        };
+
+        return preg_replace_callback($pattern, $replaceCallable, $methodName);
     }
 
     /**
@@ -329,7 +367,13 @@ END;
             return $callable($methodName);
         }
 
-        return str_replace('.', '', $methodName);
+        $pattern = '/\.(\w?)/i';
+
+        $replaceCallable = function (array $matches) {
+            return strtoupper($matches[1]);
+        };
+
+        return preg_replace_callback($pattern, $replaceCallable, $methodName);
     }
 
     /**
@@ -352,6 +396,16 @@ END;
         $operationGenerator->generate();
     }
 
+
+    /**
+     * @param $interfaceFQCN
+     * @throws APIBuilderException
+     */
+    function generateInterface($interfaceFQCN) {
+        $this->interfaceGenerator->setFQCN($interfaceFQCN);
+        $text = $this->interfaceGenerator->generate();
+        saveFile($this->outputPath, $interfaceFQCN, $text);
+    }
 
     /**
      * @throws \Exception
@@ -383,7 +437,6 @@ END;
         else {
             $fqExceptionClassname = $classname.'Exception';
         }
-        
 
 $classText = <<< END
 
@@ -417,19 +470,71 @@ END;
      * @param array $methodNameArray
      */
     function includeMethods(array $methodNameArray) {
-        $this->includeMethods = array_merge($this->includeMethods, $methodNameArray);
+        $quoteCallable = function ($string) {
+            return preg_quote($string, $this->delimiter);
+        };
+        $newIncludes = array_map($quoteCallable, $methodNameArray);
+        $this->includeMethods = array_merge($this->includeMethods, $newIncludes);
     }
+
+    /**
+     * @param array $methodNameArray
+     */
+    function excludeMethods(array $methodNameArray) {
+        $quoteCallable = function ($string) {
+            return preg_quote($string, $this->delimiter);
+        };
+        $newExcludes = array_map($quoteCallable, $methodNameArray);
+        $this->excludeMethods = array_merge($this->excludeMethods, $newExcludes);
+    }
+    
+    
+    /**
+     * @param $pattern
+     */
+    function includePattern($pattern) {
+        $this->includeMethods[] = $pattern;
+    }
+
+
+    /**
+     * @param $pattern
+     */
+    function excludePattern($pattern) {
+        $this->excludeMethods[] = $pattern;
+    }
+
+
 
     /**
      * @param $operationName
      * @return bool
      */
     function shouldOperationBeGenerated($operationName) {
-        if (in_array($operationName, $this->includeMethods)) {
-            return true;
+        
+        $shouldInclude = false;
+        
+        if (count($this->includeMethods) == 0) {
+            //Include filter is empty - so add all operations.
+            $shouldInclude = true;
+        }
+        
+        foreach ($this->includeMethods as $includePattern) {
+            $includePattern = $this->delimiter.$includePattern.$this->delimiter;
+            if (preg_match($includePattern, $operationName)) {
+                $shouldInclude = true;
+            }
         }
 
-        return false;
+        foreach ($this->excludeMethods as $excludePattern) {
+            $includePattern = $this->delimiter.$excludePattern.$this->delimiter;
+            if (preg_match($includePattern, $operationName)) {
+                $shouldInclude = false;
+            }
+        }
+        
+
+        return $shouldInclude;
     }
 
     /**
@@ -523,12 +628,15 @@ END;
     function addAPIParameterAccessMethod() {
 
         foreach ($this->apiParameters as $apiParameter) {
-            $methodGenerator = new MethodGenerator('get'.$apiParameter);
+
+            $translatedParam = ucfirst($this->translateParameter($apiParameter));
+            
+            $methodGenerator = new MethodGenerator('get'.$translatedParam);
             $body = 'return $this->'.$apiParameter.';'.PHP_EOL;
             $methodGenerator->setBody($body);
             $this->generator->addMethodFromGenerator($methodGenerator);
 
-            $methodGenerator = new MethodGenerator('set'.$apiParameter);
+            $methodGenerator = new MethodGenerator('set'.$translatedParam);
             $body = '$this->'.$apiParameter.' = $value;'.PHP_EOL;
             $parameterParameter = new ParameterGenerator('value');
             $methodGenerator->setParameter($parameterParameter);
@@ -546,13 +654,14 @@ END;
         $this->addCallMethod();
         $this->generateMethods();
         $this->addAPIParameterAccessMethod();
-        $this->generateOperationGetters();
+        $this->addOperationGetters();
 
         if (count($this->interfaces)) {
             $this->generator->setImplementedInterfaces($this->interfaces);
         }
 
         $this->generateExceptionClass();
+        
 
         $text = $this->generator->generate();
         saveFile($this->outputPath, $this->fqcn, $text);
