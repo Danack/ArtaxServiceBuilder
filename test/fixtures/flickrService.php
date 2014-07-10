@@ -16,7 +16,7 @@ return array (
 
 			"parameters" => array(
 				'oauth_callback' => array(
-					"location" => "query",
+					"location" => "oauth",
 					"description" => "The URL that an authorisation request should return the user to.",
 					'required' => true,
 				),
@@ -27,7 +27,7 @@ return array (
 			"httpMethod" => "GET",
 			'uri' => 'http://www.flickr.com/services/oauth/access_token',
 			"summary" => "Exchanges Oauth request token for access token.",
-			"responseClass" => "Intahwebz\\FlickrGuzzle\\DTO\\OauthAccessToken",
+			"responseClass" => "AABTest\\OauthAccessToken",
 
 			"parameters" => array(
 

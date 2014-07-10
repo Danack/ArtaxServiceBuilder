@@ -61,20 +61,21 @@ $apiGenerator->addParameterTranslation([
     'Is_public' => 'isPublic'
 ]);
 
-if (false) {
+if (true) {
     $apiGenerator->includeMethods([
-        'UploadPhoto',
-        "flickr.people.getPublicPhotos",
-        "flickr.people.getPhotos"
+        'GetOauthAccessToken',
+        'GetOauthRequestToken'
+//        "flickr.people.getPublicPhotos",
+//        "flickr.people.getPhotos"
     ]);
     
-    $apiGenerator->includePattern('flickr\.people\.get.*');
+    //$apiGenerator->includePattern('flickr\.people\.get.*');
 }
 
 
 $apiGenerator->excludeMethods(['defaultGetOperation']);
 
-$apiGenerator->parseAndAddService(__DIR__.'/fixtures/flickrService.php');
+$apiGenerator->parseAndAddServiceFromFile(__DIR__.'/fixtures/flickrService.php');
 $apiGenerator->addInterface('AABTest\FlickrAPI');
 $apiGenerator->setFQCN('AABTest\FlickrAPI\FlickrAPI');
 $apiGenerator->generate();

@@ -149,6 +149,8 @@ class OperationDefinition {
                     $parameter->setDescription($parameterDescription['description']);
                 }
 
+
+
                 if (in_array($paramName, $api->getAPIParameters())) {
                     $parameter->setIsAPIParameter(true);
                 }
@@ -163,6 +165,12 @@ class OperationDefinition {
                 $this->{$simpleParam} = $description[$simpleParam];
             }
         } 
+        
+        //Yep, guzzle switches between baseURL and URI
+        //@TODO - allow URL or URI in both.
+        if (isset($description['uri'])) {
+            $this->setURL($description['uri']);
+        }
     }
 }
 

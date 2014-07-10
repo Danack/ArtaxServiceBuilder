@@ -96,6 +96,9 @@ class APIGenerator {
      * @var \ArtaxApiBuilder\OperationDefinition[]
      */
     private $operations = [];
+    
+    private $authErrorAsException = false;
+    
 
     /**
      * @param $outputPath
@@ -111,6 +114,21 @@ class APIGenerator {
 
 
     /**
+     * Whether to throw AuthException when an authorization error occurs.
+     * 
+     * The service can generate code to handle authorisation errors in one of two ways:
+     *
+     * i) Throw an AuthException.
+     * ii) Retutn an AuthorisationRequiredResponse
+     * 
+     * @param $authErrorAsException
+     */
+    function setAuthErrorAsException($authErrorAsException) {
+        $this->authErrorAsException = $authErrorAsException;
+    }
+    
+
+    /**
      * Get the list of parameters (by name) that should only exist at an API level, rather
      * than being copied all over the API.
      * @return mixed
@@ -119,6 +137,12 @@ class APIGenerator {
         return $this->apiParameters;
     }
 
+    /**
+     * @return OperationDefinition[]
+     */
+    function getOperations() {
+        return $this->operations;
+    }
 
     /**
      * @param $interface
@@ -569,7 +593,7 @@ END;
      * @return OperationDefinition
      * @throws \ArtaxApiBuilder\APIBuilderException
      */
-    function getOperationDescription($service, $operationName, $baseURL) {
+    function createOperationDescription($service, $operationName, $baseURL) {
 
         if (isset($service["operations"][$operationName]) == false) {
             throw new APIBuilderException("Service does not have operation named `$operationName`.");
@@ -578,7 +602,7 @@ END;
         $operationDescription = $service["operations"][$operationName];
 
         if (isset($operationDescription['extends'])) {
-            $operation = $this->getOperationDescription($service, $operationDescription['extends'], $baseURL);
+            $operation = $this->createOperationDescription($service, $operationDescription['extends'], $baseURL);
         }
         else {
             $operation = new OperationDefinition();
@@ -597,7 +621,7 @@ END;
      * @return array
      * @throws APIBuilderException
      */
-    function parseAndAddService($serviceFilename) {
+    function parseAndAddServiceFromFile($serviceFilename) {
         $service = require_once($serviceFilename);
 
         if ($service == false) {
@@ -607,6 +631,15 @@ END;
             throw new APIBuilderException("File `$serviceFilename` did not return a service array. Cannot build API from it.");
         }
 
+        $this->parseAndAddService($service);
+    }
+
+    /**
+     * @param array $service
+     * @throws APIBuilderException
+     */
+    function parseAndAddService(array $service) {
+
         $baseURL = null;
 
         if (isset($service["baseUrl"])) {
@@ -615,13 +648,15 @@ END;
 
         foreach ($service["operations"] as $operationName => $operationDescription) {
             if ($this->shouldOperationBeGenerated($operationName)) {
-                $operation = $this->getOperationDescription($service, $operationName, $baseURL);
+                $operation = $this->createOperationDescription($service, $operationName, $baseURL);
                 $this->addMethod($operation->getName(), $operation);
             }
         }
     }
 
 
+    
+    
     /**
      * 
      */

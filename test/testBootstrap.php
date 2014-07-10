@@ -16,3 +16,9 @@ if (defined('FLICKR_KEY') == false) {
     echo "To run the Flickr tests you must define a Flickr API key to use.";
     define('FLICKR_KEY', 12345);
 }
+
+if (defined('FLICKR_SECRET') == false) {
+    echo "To run the Flickr oauth tests you must define a Flickr API key to use.";
+    define('FLICKR_SECRET', 54321);
+}
+

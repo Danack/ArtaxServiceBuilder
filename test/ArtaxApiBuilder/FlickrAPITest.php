@@ -85,6 +85,9 @@ class FlickrAPITest extends \ArtaxApiBuilder\TestBase {
      */
     function testUpload() {
 
+        $this->markTestSkipped("Form body in Artax is borken.");
+        return;
+        
         $api = new \AABTest\FlickrAPI\FlickrAPI(FLICKR_KEY);
         $user_id = "46085186@N02";
 
@@ -100,8 +103,6 @@ class FlickrAPITest extends \ArtaxApiBuilder\TestBase {
         
 
         $fileUploadResponse = $command->execute();
-        
-
     }
     
 }

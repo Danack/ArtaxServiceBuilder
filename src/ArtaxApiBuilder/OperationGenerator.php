@@ -353,6 +353,61 @@ END;
     }
 
     /**
+     *
+     */
+    function addDispatchMethod() {
+        $methodGenerator = new MethodGenerator('dispatch');
+
+        $body = '';
+        $body .= '$response = $this->api->callAPI($request);'.PHP_EOL;
+
+        $responseClass = $this->operation->getResponseClass();
+        $responseFactory = $this->operation->getResponseFactory();
+
+        if ($responseFactory) {
+            //Response is turned by $responseFactory into $responseClass
+            $body .= <<< END
+\$instance = \\$responseClass::createFromResponse(\$response, \$this);
+
+return \$instance;
+END;
+        }
+        else if ($responseClass) {
+            //TODO - encapsulate this to allow re-use in execute
+            //Response is turned into $responseClass by a static method on that class
+            $body .= <<< END
+\$instance = \\$responseClass::createFromResponse(\$response, \$this);
+
+return \$instance;
+END;
+        }
+        else {
+            //No hydrating of data done.
+            $body .= 'return $response->getBody();';
+        }
+
+        $methodGenerator->setBody($body);
+        $docBlock = new DocBlockGenerator(
+            'Dispatch the request for this operation and process the response.', 
+            'Allows you to modify the request before it is sent.'
+        );
+        if ($responseClass) {
+            $tags[] = new GenericTag('return', '\\'.$responseClass);
+        }
+        else {
+            $tags[] = new GenericTag('return', 'mixed');
+        }
+        $docBlock->setTags($tags);
+        $methodGenerator->setDocBlock($docBlock);
+
+        $parameter = new ParameterGenerator('request', 'Artax\Request');
+        $methodGenerator->setParameter($parameter);
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
+    
+    
+    
+    /**
      * @throws \ArtaxApiBuilder\APIBuilderException
      */
     function generate() {
@@ -373,6 +428,7 @@ END;
         $this->addAccessorMethods();
         $this->addOptionalParamMethods();
         $this->addExecuteMethod();
+        $this->addDispatchMethod();
 
         $this->classGenerator->setImplementedInterfaces(['ArtaxApiBuilder\Operation']);
         $this->classGenerator->setFQCN($fqcn);

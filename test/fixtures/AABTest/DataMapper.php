@@ -52,6 +52,8 @@ trait DataMapper {
         return $instance;
     }
 
+
+    
     /**
      * @param $data
      * @throws DataMapperException
