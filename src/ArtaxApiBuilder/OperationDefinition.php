@@ -11,6 +11,7 @@ class OperationDefinition {
     private $needsSigning = null;
     private $responseClass = null;
     private $responseFactory = null;
+    private $responseCallable;
     private $permissions = [];
     private $scopes = [];
     
@@ -82,7 +83,14 @@ class OperationDefinition {
      * @return null
      */
     public function getResponseFactory() {
-        return $this->responseClass;
+        return $this->responseFactory;
+    }
+
+    /**
+     * 
+     */
+    public function getResponseCallable() {
+        return $this->responseCallable;
     }
     
 
@@ -154,6 +162,7 @@ class OperationDefinition {
             'permissions',
             "responseClass",
             "responseFactory",
+            'responseCallable',
             'scopes',
             "summary"
         ];
@@ -191,10 +200,6 @@ class OperationDefinition {
                     $parameter->setDescription($parameterDescription['description']);
                 }
 
-                
-
-                
-
                 if (in_array($paramName, $api->getAPIParameters())) {
                     $parameter->setIsAPIParameter(true);
                 }
@@ -202,8 +207,6 @@ class OperationDefinition {
                 $this->parameters[] = $parameter;
             }
         }
-
-
     }
 }
 

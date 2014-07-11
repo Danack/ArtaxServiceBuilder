@@ -211,12 +211,8 @@ END;
 
         //We only create a form body if one is needed. This string gets set 
         //to '' after it is used.
-        
-
         $body .= '$formBody = null;'.PHP_EOL;
-
         $body .= '$jsonParams = [];'.PHP_EOL;
-        
         
         foreach ($this->operationDefinition->getParameters() as $operationParameter) {
 
@@ -395,24 +391,27 @@ END;
 
     }
 
-    /**
-     * 
-     */
-    function addExecuteMethod() {
-        $methodGenerator = new MethodGenerator('execute');
-        
+    private function generateCreateFragment() {
+        return '$request = $this->createRequest();'.PHP_EOL;
+    }
+    
+    private function generateCallFragment() {
         $body = '';
-        $body .= '$request = $this->createRequest();'.PHP_EOL;
 
         if ($this->operationDefinition->getNeedsSigning()) {
             $body .= '$request = $this->api->signRequest($request);'.PHP_EOL;
         }
-        
+
         $body .= '$response = $this->api->callAPI($request);'.PHP_EOL;
 
+        return $body; 
+    }
+    
+    private function generateResponseFragment() {
+        $body = '';
         $responseClass = $this->operationDefinition->getResponseClass();
         $responseFactory = $this->operationDefinition->getResponseFactory();
-        
+
         if ($responseFactory) {
             //Response is turned by $responseFactory into $responseClass
             $body .= <<< END
@@ -433,9 +432,19 @@ END;
             //No hydrating of data done.
             $body .= 'return $response->getBody();';
         }
+        
+        return $body;
+    }
 
-        $methodGenerator->setBody($body);
-        $docBlock = new DocBlockGenerator('Execute the operation', null);
+    /**
+     * Generate the docblock generator for methods that return a hydrated object
+     * @return DocBlockGenerator
+     */
+    private function generateExecuteDocBlock($methodDescription) {
+
+        $responseClass = $this->operationDefinition->getResponseClass();
+//        $responseFactory = $this->operationDefinition->getResponseFactory();
+        $docBlock = new DocBlockGenerator($methodDescription, null);
         if ($responseClass) {
             $tags[] = new GenericTag('return', '\\'.$responseClass);
         }
@@ -443,11 +452,49 @@ END;
             $tags[] = new GenericTag('return', 'mixed');
         }
         $docBlock->setTags($tags);
-        $methodGenerator->setDocBlock($docBlock);
 
+        return $docBlock;
+    }
+    
+    
+    /**
+     * 
+     */
+    function addExecuteMethod() {
+        $methodGenerator = new MethodGenerator('execute');
+        $body = '';
+        $body .= $this->generateCreateFragment();
+        $body .= $this->generateCallFragment();
+        $body .= $this->generateResponseFragment();
+        $methodGenerator->setBody($body);
+        $docBlock = $this->generateExecuteDocBlock('Execute the operation');
+        $methodGenerator->setDocBlock($docBlock);
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
 
+
+    /**
+     * 
+     */
+    function addCreateAndCallMethod() {
+        $methodGenerator = new MethodGenerator('createAndCall');
+        $body = '';
+        $body .= $this->generateCreateFragment();
+        $body .= $this->generateCallFragment();
+        $body .= PHP_EOL;
+        $body .= 'return $response;'.PHP_EOL;;
+        $docBlock = new DocBlockGenerator('Create and call the operation, returning the raw response from the server.', null);
+        $tags[] = new GenericTag('return', '\Artax\Response');
+        $docBlock->setTags($tags);
+        
+        $methodGenerator->setBody($body);
+        //$docBlock = $this->generateExecuteDocBlock('Execute the operation');
+        $methodGenerator->setDocBlock($docBlock);
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
+    
+    
+    
     /**
      *
      */
@@ -455,51 +502,51 @@ END;
         $methodGenerator = new MethodGenerator('dispatch');
 
         $body = '';
+        $body .= $this->generateCallFragment();
+        $body .= $this->generateResponseFragment();
 
-        if ($this->operationDefinition->getNeedsSigning()) {
-            $body .= '$request = $this->api->signRequest($request);'.PHP_EOL;
-        }
+        $docBlock = $this->generateExecuteDocBlock('Dispatch the request for this operation and process the response.Allows you to modify the request before it is sent.');
+        
+//        $responseClass = $this->operationDefinition->getResponseClass();
+//        $responseFactory = $this->operationDefinition->getResponseFactory();
 
-        $body .= '$response = $this->api->callAPI($request);'.PHP_EOL;
+//        if ($responseFactory) {
+//            //Response is turned by $responseFactory into $responseClass
+//            $body .= <<< END
+//\$instance = \\$responseClass::createFromResponse(\$response, \$this);
+//
+//return \$instance;
+//END;
+//        }
+//        else if ($responseClass) {
+//            //TODO - encapsulate this to allow re-use in execute
+//            //Response is turned into $responseClass by a static method on that class
+//            $body .= <<< END
+//\$instance = \\$responseClass::createFromResponse(\$response, \$this);
+//
+//return \$instance;
+//END;
+//        }
+//        else {
+//            //No hydrating of data done.
+//            $body .= 'return $response->getBody();';
+//        }
+//
+//        $methodGenerator->setBody($body);
+//        $docBlock = new DocBlockGenerator(
+//            'Dispatch the request for this operation and process the response.', 
+//            'Allows you to modify the request before it is sent.'
+//        );
+//        if ($responseClass) {
+//            $tags[] = new GenericTag('return', '\\'.$responseClass);
+//        }
+//        else {
+//            $tags[] = new GenericTag('return', 'mixed');
+//        }
+//        $docBlock->setTags($tags);
 
-        $responseClass = $this->operationDefinition->getResponseClass();
-        $responseFactory = $this->operationDefinition->getResponseFactory();
-
-        if ($responseFactory) {
-            //Response is turned by $responseFactory into $responseClass
-            $body .= <<< END
-\$instance = \\$responseClass::createFromResponse(\$response, \$this);
-
-return \$instance;
-END;
-        }
-        else if ($responseClass) {
-            //TODO - encapsulate this to allow re-use in execute
-            //Response is turned into $responseClass by a static method on that class
-            $body .= <<< END
-\$instance = \\$responseClass::createFromResponse(\$response, \$this);
-
-return \$instance;
-END;
-        }
-        else {
-            //No hydrating of data done.
-            $body .= 'return $response->getBody();';
-        }
-
-        $methodGenerator->setBody($body);
-        $docBlock = new DocBlockGenerator(
-            'Dispatch the request for this operation and process the response.', 
-            'Allows you to modify the request before it is sent.'
-        );
-        if ($responseClass) {
-            $tags[] = new GenericTag('return', '\\'.$responseClass);
-        }
-        else {
-            $tags[] = new GenericTag('return', 'mixed');
-        }
-        $docBlock->setTags($tags);
         $methodGenerator->setDocBlock($docBlock);
+        $methodGenerator->setBody($body);
 
         $parameter = new ParameterGenerator('request', 'Artax\Request');
         $methodGenerator->setParameter($parameter);
@@ -525,10 +572,10 @@ END;
         $this->addSetAPIMethod();
         $this->addSetParameterMethod();
         $this->addCheckScopeMethod();
-        $this->addCreateRequestMethod();
-        
         $this->addAccessorMethods();
         $this->addOptionalParamMethods();
+        $this->addCreateRequestMethod();
+        $this->addCreateAndCallMethod();
         $this->addExecuteMethod();
         $this->addDispatchMethod();
 
