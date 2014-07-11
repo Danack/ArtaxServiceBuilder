@@ -12,6 +12,7 @@ use Danack\Code\Generator\MethodGenerator;
 use Danack\Code\Generator\ParameterGenerator;
 
 use Danack\Code\Generator\DocBlock\Tag\GenericTag;
+use Danack\Code\Generator\PropertyGenerator;
 
 /**
  * @param $savePath
@@ -190,11 +191,21 @@ class APIGenerator {
             foreach ($this->constructorParams as $constructorParam) {
                 $param = new ParameterGenerator($constructorParam);
                 $params[] = $param;
-                
                 $body .= sprintf('$this->%s = $%s;', $constructorParam, $constructorParam);
-
                 $body .= PHP_EOL;
             }
+
+
+            
+            $param = new ParameterGenerator('oauthService', 'ArtaxApiBuilder\Service\Oauth1', null);
+
+            $param->setDefaultValue(null);
+            $params[] = $param;
+
+            $body .= sprintf('$this->%s = $%s;', 'oauthService', 'oauthService');
+            $body .= PHP_EOL;
+            
+            
             $methodGenerator->setBody($body);
             $methodGenerator->setParameters($params);
             $this->generator->addMethodFromGenerator($methodGenerator);
@@ -213,6 +224,25 @@ class APIGenerator {
         $methodGenerator->setBody($this->getCallBody());
         $this->generator->addMethodFromGenerator($methodGenerator);
     }
+
+
+    /**
+     * 
+     */
+    function addSignMethod() {
+        $methodGenerator = new MethodGenerator('signRequest');
+        $requestParam = new ParameterGenerator('request', 'Artax\Request');
+        $methodGenerator->setParameters([$requestParam]);
+        
+        $body = 'if ($this->oauthService == null) {'.PHP_EOL;;
+        $body .= '    throw new \ArtaxApiBuilder\ArtaxServiceException("oauthService is null, so cannot call request that requires oauth.");'.PHP_EOL;;
+        $body .= '}'.PHP_EOL;;
+
+        $body .= 'return $this->oauthService->signRequest($request);'.PHP_EOL;
+        $methodGenerator->setBody($body);
+        $this->generator->addMethodFromGenerator($methodGenerator);
+    }
+
 
     /**
      * 
@@ -573,6 +603,10 @@ END;
         $this->apiParameters = array_merge($this->apiParameters, $apiParameters);
     }
 
+    public function addAPIParameter($name, $type = null) {
+        $this->apiParameters[$name] = $type;
+    }
+    
 
     /**
      * Allows you to use your preference for formatting of variables in the API library
@@ -655,20 +689,20 @@ END;
     }
 
 
-    
-    
     /**
      * 
      */
     function addAPIParameterAccessMethod() {
 
-        foreach ($this->apiParameters as $apiParameter) {
-
+        foreach ($this->apiParameters as $apiParameter => $type) {
             $translatedParam = ucfirst($this->translateParameter($apiParameter));
             
             $methodGenerator = new MethodGenerator('get'.$translatedParam);
             $body = 'return $this->'.$apiParameter.';'.PHP_EOL;
             $methodGenerator->setBody($body);
+            
+            $methodGenerator->setDocBlock("@return $type");
+            
             $this->generator->addMethodFromGenerator($methodGenerator);
 
             $methodGenerator = new MethodGenerator('set'.$translatedParam);
@@ -680,12 +714,34 @@ END;
         }
     }
 
+    /**
+     * 
+     */
+    private function addProperties() {
+        $this->apiParameters;
+        $nativeProperties = ['oauthService' => 'ArtaxApiBuilder\Service\Oauth1'];
+        $allProperties = [$this->apiParameters, $nativeProperties];
+
+        foreach ($allProperties as $properties) {
+            foreach ($properties as $property => $type) {
+                $propGenerator = new PropertyGenerator($property);
+                
+//                $docBlockGenerator = new DocBlockGenerator();
+//                $docBlockGenerator->setTag(new GenericTag())
+
+                $propGenerator->setStandardDocBlock($type);
+                $this->generator->addPropertyFromGenerator($propGenerator);
+            }
+        }
+    }
 
     /**
      *
      */
     function generate() {        
         $this->sanityCheck();
+        $this->addProperties();
+        $this->addSignMethod();
         $this->addCallMethod();
         $this->generateMethods();
         $this->addAPIParameterAccessMethod();
@@ -696,7 +752,6 @@ END;
         }
 
         $this->generateExceptionClass();
-        
 
         $text = $this->generator->generate();
         saveFile($this->outputPath, $this->fqcn, $text);

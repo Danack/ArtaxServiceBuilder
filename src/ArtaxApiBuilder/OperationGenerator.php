@@ -18,7 +18,7 @@ class OperationGenerator {
     /**
      * @var OperationDefinition
      */
-    private $operation;
+    private $operationDefinition;
     private $outputPath;
     private $namespace;
     private $apiClassname;
@@ -49,7 +49,7 @@ class OperationGenerator {
     ) {
         $this->namespace = $namespace;
         $this->className = $className;
-        $this->operation = $operation;
+        $this->operationDefinition = $operation;
         $this->outputPath = $outputPath;
         $this->classGenerator = new ClassGenerator();
         $this->apiGenerator = $api;
@@ -100,7 +100,7 @@ class OperationGenerator {
         $parameterGenerator = new ParameterGenerator('params', 'array');
         $methodGenerator->setParameter($parameterGenerator);
         $body = '';
-        foreach($this->operation->getParameters() as $parameter) {
+        foreach($this->operationDefinition->getParameters() as $parameter) {
             $paramName = $parameter->getName();
             $translatedParam = $this->apiGenerator->translateParameter($paramName);
             $setString = <<< END
@@ -118,22 +118,78 @@ END;
 
 
     /**
+     * Adds a method to allow checking of the scope requirement for an operation.
+     */
+    function addCheckScopeMethod() {
+
+        $scopes = $this->operationDefinition->getScopes();
+        if (count($scopes) == 0) {
+            //TODO - should the method be added anyway? For now, no.
+            return;
+        }
+
+        $methodGenerator = new MethodGenerator('checkScopeRequirement');
+        $parameterGenerator = new ParameterGenerator('allowedScopes', 'array');
+        $methodGenerator->setParameter($parameterGenerator);
+        
+        $body = '//For each of the elements, all of the scopes in that element'.PHP_EOL;
+        $body .= '//must be satisfied'.PHP_EOL;
+        $body .= '$requiredScopesArray = ['.PHP_EOL;
+        
+        foreach ($scopes as $scopeList) {
+            $body .= '    [';
+            $separator = '';
+            foreach ($scopeList as $scope) {
+                $body .= sprintf("%s'%s'", $separator, $scope);
+                $separator = ', ';
+            }
+            $body .= ']'.PHP_EOL;
+        }
+
+        $body .= '];'.PHP_EOL.PHP_EOL;
+
+        $body .= <<< 'END'
+foreach($requiredScopesArray as $requiredScopes) {
+     $requirementMet = true;
+     foreach ($requiredScopes as $requiredScope) {
+         if (in_array($requiredScope, $allowedScopes) == false) {
+             $requirementMet = false;
+             break;
+         }
+     }
+
+    if ($requirementMet == true) {
+        return true;
+    }
+}
+
+return false;
+
+END;
+
+        $methodGenerator->setBody($body);
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
+    
+    
+
+    /**
      * 
      */
     function addCreateRequestMethod() {
 
         $body = '$request = new \Artax\Request();'.PHP_EOL;
 
-        $url = $this->operation->getURL();
+        $url = $this->operationDefinition->getURL();
         $body .= sprintf('$url = "%s";'.PHP_EOL, addslashes($url));
-        $body .= sprintf('$request->setMethod(\'%s\');'.PHP_EOL, $this->operation->getHttpMethod());
+        $body .= sprintf('$request->setMethod(\'%s\');'.PHP_EOL, $this->operationDefinition->getHttpMethod());
         $body .= '$queryParameters = [];'.PHP_EOL;
 
         $body .= ''.PHP_EOL;
         $body .= '//Add parameters that are defined at the API level, not the'.PHP_EOL;
         $body .= '//operation level'.PHP_EOL;
         $apiParameters = $this->apiGenerator->getAPIParameters();
-        foreach ($this->operation->getParameters() as $operationParameter) {
+        foreach ($this->operationDefinition->getParameters() as $operationParameter) {
             foreach ($apiParameters as $apiParameter) {
                 if ($apiParameter === $operationParameter->getName()) {
 
@@ -149,6 +205,7 @@ END;
         }
 
         $hasBody = false;
+        $hasJson = false;
 
         $body .= ''.PHP_EOL;
 
@@ -157,25 +214,30 @@ END;
         
 
         $body .= '$formBody = null;'.PHP_EOL;
+
+        $body .= '$jsonParams = [];'.PHP_EOL;
         
         
-        foreach ($this->operation->getParameters() as $operationParameter) {
+        foreach ($this->operationDefinition->getParameters() as $operationParameter) {
 
             if ($operationParameter->getLocation() === 'postField' ||
                 $operationParameter->getLocation() === 'postFile') {
                 $body .= '$formBody = new \Artax\FormBody;'.PHP_EOL;
                 break;
             }
+            
         }
 
 
-        foreach ($this->operation->getParameters() as $operationParameter) {
+        foreach ($this->operationDefinition->getParameters() as $operationParameter) {
 
             $body .= sprintf(
                 'if (array_key_exists(\'%s\', $this->parameters) == true) {'.PHP_EOL,
                 $operationParameter->getName()
             );
 
+
+            
             switch($operationParameter->getLocation()) {
 
                 case 'postField': {     
@@ -198,6 +260,26 @@ END;
                     $hasBody = true;
                     break;
                 }
+                    
+                    
+                case 'json': {
+                    $body .= sprintf(
+                        '    $jsonParams[\'%s\'] = $this->parameters[\'%s\'];'.PHP_EOL,
+                        $operationParameter->getName(),
+                        $operationParameter->getName()
+                    );
+                    $hasJson = true;
+                    break;
+                }
+
+                case ('header'): {
+                    $body .= sprintf( 
+                        '    $request->setHeader(\'%s\', $this->parameters[\'%s\']);'.PHP_EOL,
+                        $operationParameter->getName(),
+                        $operationParameter->getName()
+                    );
+                    break;
+                }
 
                 default:
                 case 'query': {
@@ -214,6 +296,15 @@ END;
 
         if ($hasBody == true) {
             $body .= '$request->setBody($formBody);'.PHP_EOL;
+        }
+
+        if ($hasJson == true) {
+
+            $body .= 'if (count($jsonParams)) {'.PHP_EOL;
+            $body .= '    $jsonBody = json_encode($jsonParams);'.PHP_EOL;
+            $body .= '    $request->setHeader("Content-Type", "application/json");'.PHP_EOL;
+            $body .= '    $request->setBody($jsonBody);'.PHP_EOL;
+            $body .= '}'.PHP_EOL;
         }
 
         $body .= '$uri = $url;'.PHP_EOL;
@@ -235,7 +326,7 @@ END;
      * 
      */
     function addAccessorMethods() {
-        foreach($this->operation->getParameters() as $parameter) {
+        foreach($this->operationDefinition->getParameters() as $parameter) {
 
             $translatedParam = $this->apiGenerator->translateParameter($parameter->getName());
             
@@ -256,9 +347,9 @@ END;
      * 
      */
     private function addConstructorMethod() {
-        $requiredParameters = $this->operation->getRequiredParams();
+        $requiredParameters = $this->operationDefinition->getRequiredParams();
         $methodGenerator = new MethodGenerator('__construct');
-        $defaultParams = $this->operation->getDefaultParams();
+        $defaultParams = $this->operationDefinition->getDefaultParams();
 
         $body = '';
         if (count($defaultParams)) {
@@ -296,7 +387,7 @@ END;
         $methodGenerator->setBody($body);
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
-
+    
     /**
      * 
      */
@@ -312,10 +403,15 @@ END;
         
         $body = '';
         $body .= '$request = $this->createRequest();'.PHP_EOL;
+
+        if ($this->operationDefinition->getNeedsSigning()) {
+            $body .= '$request = $this->api->signRequest($request);'.PHP_EOL;
+        }
+        
         $body .= '$response = $this->api->callAPI($request);'.PHP_EOL;
 
-        $responseClass = $this->operation->getResponseClass();
-        $responseFactory = $this->operation->getResponseFactory();
+        $responseClass = $this->operationDefinition->getResponseClass();
+        $responseFactory = $this->operationDefinition->getResponseFactory();
         
         if ($responseFactory) {
             //Response is turned by $responseFactory into $responseClass
@@ -359,10 +455,15 @@ END;
         $methodGenerator = new MethodGenerator('dispatch');
 
         $body = '';
+
+        if ($this->operationDefinition->getNeedsSigning()) {
+            $body .= '$request = $this->api->signRequest($request);'.PHP_EOL;
+        }
+
         $body .= '$response = $this->api->callAPI($request);'.PHP_EOL;
 
-        $responseClass = $this->operation->getResponseClass();
-        $responseFactory = $this->operation->getResponseFactory();
+        $responseClass = $this->operationDefinition->getResponseClass();
+        $responseFactory = $this->operationDefinition->getResponseFactory();
 
         if ($responseFactory) {
             //Response is turned by $responseFactory into $responseClass
@@ -423,6 +524,7 @@ END;
         $this->addConstructorMethod();
         $this->addSetAPIMethod();
         $this->addSetParameterMethod();
+        $this->addCheckScopeMethod();
         $this->addCreateRequestMethod();
         
         $this->addAccessorMethods();

@@ -10,9 +10,10 @@ return array (
 		//The first three operations are made to a different URL than all the other requests
 		"GetOauthRequestToken" => array(
 			"httpMethod" => "GET",
+            'needsSigning' => true,
 			'uri' => 'http://www.flickr.com/services/oauth/request_token',
 			"summary" => "Starts the Oauth process.",
-			"responseClass" => "Intahwebz\\FlickrGuzzle\\DTO\\OauthRequestToken",
+			"responseClass" => 'AABTest\OauthRequestToken',
 
 			"parameters" => array(
 				'oauth_callback' => array(
@@ -25,6 +26,7 @@ return array (
 
 		"GetOauthAccessToken" => array(
 			"httpMethod" => "GET",
+            'needsSigning' => true,
 			'uri' => 'http://www.flickr.com/services/oauth/access_token',
 			"summary" => "Exchanges Oauth request token for access token.",
 			"responseClass" => "AABTest\\OauthAccessToken",
@@ -38,6 +40,8 @@ return array (
 //					"description" => "The Oauth token that will be exchanged for an access token.",
 //					'required' => true,
 //				),
+
+            
 				'oauth_verifier' => array(
 					"location" => "query",
 					"description" => "The oauth_verifier that shows that the user was redirected back to your site.",
@@ -6828,27 +6832,23 @@ Possible values are:
 //			),
 //		),
 
+    
+    
 //// 199
-//		"flickr.test.login" => array(
-//			'extends' => 'defaultGetOperation',
-//			'summary' => 'A testing method which checks if the caller is logged in then returns their username.',
-//			'needsSigning' => true,
-//			'responseClass' => null, //'Intahwebz\\FlickrGuzzle\\DTO\\',
-//			/* Example
-//<user id="12037949754@N01">
-//	<username>Bees</username>
-//</user>
-//
-//*/
-//			'parameters' => array(
-//				'method'    => array(
-//					'location' => 'query',
-//					'description' => 'Which flickr call is being made.',
-//					'default' => 'flickr.test.login',
-//				),
-//			),
-//		),
-//
+		"flickr.test.login" => array(
+			'extends' => 'defaultGetOperation',
+			'summary' => 'A testing method which checks if the caller is logged in then returns their username.',
+			'needsSigning' => true,
+			'responseClass' => 'AABTest\LoginInfo', //'Intahwebz\\FlickrGuzzle\\DTO\\',
+			'parameters' => array(
+                'method'    => array(
+					'location' => 'query',
+					'description' => 'Which flickr call is being made.',
+					'default' => 'flickr.test.login',
+				),
+			),
+		),
+
 //// 200
 //		"flickr.test.null" => array(
 //			'extends' => 'defaultGetOperation',

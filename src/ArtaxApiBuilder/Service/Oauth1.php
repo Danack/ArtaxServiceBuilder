@@ -44,6 +44,8 @@ class Oauth1
     private $version = '1.0';
     protected $disable_post_params;
 
+    private $oauth_token;
+
 
     /**
      * Create a new OAuth 1.0 plugin.
@@ -66,17 +68,20 @@ class Oauth1
      * @param array $config Configuration array.
      */
     public function __construct(OauthConfig $oauthConfig) {
-
         $this->oauthConfig = $oauthConfig;
-
-        //$consumerKey = 'anonymous', $consumerSecret = 'anonymous'
         $this->version          = '1.0';
-        //$this->request_method   = self::REQUEST_METHOD_HEADER;
-//        $this->consumer_key     = $consumerKey;
-//        $this->consumer_secret  = $consumerSecret;
         $this->signature_method = self::SIGNATURE_METHOD_HMAC;
     }
 
+    
+    function setOauthToken($oauth_token) {
+        $this->oauth_token = $oauth_token;
+    }
+    
+    function setTokenSecret($token_secret) {
+        $this->token_secret = $token_secret;
+    }
+    
     /**
      * Decide whether the post fields should be added to the base string that Oauth signs.
      * Non-conformant APIs may require that this method be
@@ -123,7 +128,6 @@ class Oauth1
             $request,
             $this->prepareParameters($params)
         );
-        
 
         uksort($oauthParams, 'strcmp');
 
@@ -250,6 +254,7 @@ class Oauth1
     {
         // Remove query params from URL. Ref: Spec: 9.1.2.
         //TODO - remove params properly, not this hack method
+        $request = clone $request;
         $request->setQueryFields([]);
         $url = $request->getUri();
         $query = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
@@ -285,8 +290,6 @@ class Oauth1
     {        
         $key = rawurlencode($this->oauthConfig->getConsumerSecret())
             . '&' . rawurlencode($this->token_secret);
-
-        //Consumer Secret and Token Secret, 
 
         return hash_hmac('sha1', $baseString, $key, true);
     }
@@ -354,6 +357,11 @@ class Oauth1
             'oauth_nonce'            => $nonce,
             'oauth_timestamp'        => time(),
         ];
+
+        if (isset($this->oauth_token)) {
+            $params['oauth_token'] = $this->oauth_token;//"72157645608249751-2869f789da42d2f2";
+        }
+        
 
         $params = $this->oauthConfig->toArray($params);
 

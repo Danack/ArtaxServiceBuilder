@@ -45,10 +45,14 @@ $apiGenerator = new \ArtaxApiBuilder\APIGenerator(
 );
 
 
+//
+//$apiGenerator->addAPIParameters([
+//    'api_key' => 'string'
+//]);
 
-$apiGenerator->addAPIParameters([
-    'api_key'
-]);
+$apiGenerator->addAPIParameter('api_key', 'string');
+
+
 
 $apiGenerator->addParameterTranslation([
     'api_key' => 'apiKey',
@@ -64,9 +68,10 @@ $apiGenerator->addParameterTranslation([
 if (true) {
     $apiGenerator->includeMethods([
         'GetOauthAccessToken',
-        'GetOauthRequestToken'
-//        "flickr.people.getPublicPhotos",
-//        "flickr.people.getPhotos"
+        'GetOauthRequestToken',
+        "flickr.people.getPublicPhotos",
+        "flickr.people.getPhotos",
+        "flickr.test.login"
     ]);
     
     //$apiGenerator->includePattern('flickr\.people\.get.*');
@@ -74,9 +79,25 @@ if (true) {
 
 
 $apiGenerator->excludeMethods(['defaultGetOperation']);
-
 $apiGenerator->parseAndAddServiceFromFile(__DIR__.'/fixtures/flickrService.php');
 $apiGenerator->addInterface('AABTest\FlickrAPI');
 $apiGenerator->setFQCN('AABTest\FlickrAPI\FlickrAPI');
 $apiGenerator->generate();
 $apiGenerator->generateInterface('AABTest\FlickrAPI');
+
+
+
+//Start of github
+$apiGenerator = new \ArtaxApiBuilder\APIGenerator(
+    $outputDirectory,
+    []
+);
+
+
+$apiGenerator->excludeMethods(['defaultGetOperation']);
+$apiGenerator->parseAndAddServiceFromFile(__DIR__.'/fixtures/githubService.php');
+$apiGenerator->addInterface('AABTest\GithubAPI');
+$apiGenerator->setFQCN('AABTest\GithubAPI\GithubAPI');
+$apiGenerator->generate();
+$apiGenerator->generateInterface('AABTest\GithubAPI');
+

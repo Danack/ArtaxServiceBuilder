@@ -14,6 +14,9 @@ class Parameter {
     private $description;
     private $location;
     
+    private $permissions;
+    private $scopes;
+    
     function __construct($name) {
         $this->name = $name;
         $this->isAPIParameter = false;
@@ -27,6 +30,15 @@ class Parameter {
     function setDescription($description) {
         $this->description = $description;
     }
+    
+    function setPermissions($permissions) {
+        $this->permissions = $permissions;
+    }
+
+    function setScopes($scopes) {
+        $this->scopes = $scopes;
+    }
+    
 
     /**
      * @return string

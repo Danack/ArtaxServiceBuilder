@@ -48,19 +48,12 @@ class OauthConfig {
         if ($version !== null) {
             $this->params['oauth_version'] = $version;
         }
-
-
-        $this->params['oauth_callback'] = "http://example.com/";
-        
     }
 
     function getConsumerSecret() {
         return $this->consumer_secret;
     }
-    
-//    function setCallback($callback) {
-//        $this->params['oauth_callback'] = $callback;
-//    }
+
 
     function setOauthToken($callback) {
         $this->params['oauth_token'] = $callback;

@@ -11,7 +11,9 @@ class OperationDefinition {
     private $needsSigning = null;
     private $responseClass = null;
     private $responseFactory = null;
-
+    private $permissions = [];
+    private $scopes = [];
+    
     /**
      * @var \ArtaxApiBuilder\Parameter[]
      */
@@ -25,6 +27,20 @@ class OperationDefinition {
     
     function setName($name) {
         $this->name = $name;
+    }
+
+    /**
+     * @return array
+     */
+    public function getPermissions() {
+        return $this->permissions;
+    }
+
+    /**
+     * @return array
+     */
+    public function getScopes() {
+        return $this->scopes;
     }
 
     /**
@@ -130,6 +146,32 @@ class OperationDefinition {
      * @param $description
      */
     function setFromServiceDescription($description, APIGenerator $api) {
+
+        $operationParams = [
+            "extends", 
+            "httpMethod",
+            "needsSigning",
+            'permissions',
+            "responseClass",
+            "responseFactory",
+            'scopes',
+            "summary"
+        ];
+
+        foreach ($operationParams as $simpleParam) {
+            if (isset($description[$simpleParam])) {
+                $this->{$simpleParam} = $description[$simpleParam];
+            }
+        }
+
+        //Yep, guzzle switches between baseURL and URI
+        //@TODO - allow URL or URI in both.
+        if (isset($description['uri'])) {
+            $this->setURL($description['uri']);
+        }
+        
+        
+        
         if (isset($description["parameters"])) {
             foreach ($description["parameters"] as $paramName => $parameterDescription) {
                 $parameter = new Parameter($paramName);
@@ -149,7 +191,9 @@ class OperationDefinition {
                     $parameter->setDescription($parameterDescription['description']);
                 }
 
+                
 
+                
 
                 if (in_array($paramName, $api->getAPIParameters())) {
                     $parameter->setIsAPIParameter(true);
@@ -159,18 +203,7 @@ class OperationDefinition {
             }
         }
 
-        $operationParams = ["extends", "httpMethod", "needsSigning", "responseClass", "responseFactory", "summary"];
-        foreach ($operationParams as $simpleParam) {
-            if (isset($description[$simpleParam])) {
-                $this->{$simpleParam} = $description[$simpleParam];
-            }
-        } 
-        
-        //Yep, guzzle switches between baseURL and URI
-        //@TODO - allow URL or URI in both.
-        if (isset($description['uri'])) {
-            $this->setURL($description['uri']);
-        }
+
     }
 }
 

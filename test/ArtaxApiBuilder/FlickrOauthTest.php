@@ -6,66 +6,49 @@ use ArtaxApiBuilder\Service\OauthConfig;
  * @group service
  */
 
-class FlickrOauthTest extends \ArtaxApiBuilder\TestBase {
+class FlickrOauthTest extends \PHPUnit_Framework_TestCase { 
+  //  extends \ArtaxApiBuilder\TestBase {
 
-    /**
-     * @var \Auryn\Provider
-     */
-    private $provider;
+//    /**
+//     * @var \Auryn\Provider
+//     */
+//    private $provider;
 
-    function setup() {
-        //$this->provider = createTestProvider();
-        parent::setup();
-    }
+//    function setup() {
+//        //$this->provider = createTestProvider();
+//        //parent::setup();
+//    }
 
 
     function testFlickOauthRequest() {
-
 
         $oauthConfig = new OauthConfig(
             FLICKR_KEY,
             FLICKR_SECRET
         );
 
-        $oauthService = new \ArtaxApiBuilder\Service\FlickrOauth1($oauthConfig);
+        try {
+            $oauthService = new \ArtaxApiBuilder\Service\FlickrOauth1($oauthConfig);
+            $api = new \AABTest\FlickrAPI\FlickrAPI(FLICKR_KEY, $oauthService);    
+            $command = $api->GetOauthRequestToken("http://imagick.test/");
+            $response = $command->execute();
+            var_dump($response);
+            
+            $flickrURL = "http://www.flickr.com/services/oauth/authorize?oauth_token=".$response->oauthToken;
+            echo "Please go to ".$flickrURL;
+            exit(0);
 
-        $api = new \AABTest\FlickrAPI\FlickrAPI(FLICKR_KEY);
 
-        $oauth_verifier = '12345';
-        
-        //$command = $api->GetOauthAccessToken($oauth_verifier);
-        $command = $api->GetOauthRequestToken("http://example.com/");
-        $request = $command->createRequest();
 
-        $signedRequest = $oauthService->signRequest($request);
+            //?oauth_token=72157645206112769-a4ca4cd8b679ba79&oauth_verifier=d20cc2d13e6131cd
+        }
+        catch(\AABTest\FlickrAPI\FlickrAPIException $fae) {
+            echo "FlickrAPIException response body.";
+            var_dump($fae->getResponse()->getBody());
+            
+            exit(0);
+        }
 
-        $response = $api->callAPI($signedRequest);
-        
-        var_dump($response->getBody());
-        exit(0);
-
-        //$response = $command->execute();
-        
-
-//
-//            $flickrGuzzleClient = FlickrGuzzleClient::factory(array('oauth' => TRUE,));
-//
-//            $params = array(
-//                'oauth_callback' => $callbackURL,
-//            );
-//
-//            $command = $flickrGuzzleClient->getCommand('GetOauthRequestToken', $params);
-//            $oauthRequestToken  = $command->execute();
-//
-//            setSessionVariable('oauthToken', $oauthRequestToken->oauthToken);
-//            setSessionVariable('tokenSecret', $oauthRequestToken->oauthTokenSecret);
-//
-//            $flickrURL = "http://www.flickr.com/services/oauth/authorize?oauth_token=".$oauthRequestToken->oauthToken;
-//            $this->view->assign('flickrURL', $flickrURL);
-//            $this->view->setTemplate("flickr/flickrAuthRequest");
-//        }
-        
-        
 
     }
     
