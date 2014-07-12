@@ -69,7 +69,8 @@ class OperationGenerator {
     function addProperties() {
         $requiredProperties = [
             'api' => '\\'.$this->apiClassname,
-            'parameters' => 'array'
+            'parameters' => 'array',
+            'response' => '\Artax\Response'
         ];
 
         //TODO - deal with clashes between this and bits of the actual api
@@ -79,6 +80,17 @@ class OperationGenerator {
             $propertyGenerator->setDocBlock($docBlock);
             $this->classGenerator->addPropertyFromGenerator($propertyGenerator);
         }
+
+        
+        $docBlock = new DocBlockGenerator('Get the last response.');
+        $tags[] = new GenericTag('return', '\Artax\Response');
+        $docBlock->setTags($tags);
+
+        $methodGenerator = new MethodGenerator('getResponse');
+        $body = 'return $this->response;';
+        $methodGenerator->setDocBlock($docBlock);
+        $methodGenerator->setBody($body);
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
 
     /**
@@ -150,13 +162,13 @@ END;
 
         $body .= <<< 'END'
 foreach($requiredScopesArray as $requiredScopes) {
-     $requirementMet = true;
-     foreach ($requiredScopes as $requiredScope) {
-         if (in_array($requiredScope, $allowedScopes) == false) {
-             $requirementMet = false;
-             break;
-         }
-     }
+    $requirementMet = true;
+    foreach ($requiredScopes as $requiredScope) {
+        if (in_array($requiredScope, $allowedScopes) == false) {
+            $requirementMet = false;
+            break;
+        }
+    }
 
     if ($requirementMet == true) {
         return true;
@@ -170,16 +182,15 @@ END;
         $methodGenerator->setBody($body);
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
-    
-    
 
     /**
+     * The biggest function.
      * 
+     * TODO - refactor this into chunks when it's a bit more stable
+     * TODO - use \Artax\Uri
      */
     function addCreateRequestMethod() {
-
         $body = '$request = new \Artax\Request();'.PHP_EOL;
-
         $url = $this->operationDefinition->getURL();
         $body .= sprintf('$url = "%s";'.PHP_EOL, addslashes($url));
         $body .= sprintf('$request->setMethod(\'%s\');'.PHP_EOL, $this->operationDefinition->getHttpMethod());
@@ -194,7 +205,6 @@ END;
                 if ($apiParameter === $operationParameter->getName()) {
 
                     $translatedParam = ucfirst($this->apiGenerator->translateParameter($operationParameter->getName()));
-                    
                     $body .= sprintf(
                             "\$queryParameters['%s'] = \$this->api->get%s();",
                             $apiParameter,
@@ -204,36 +214,48 @@ END;
             }
         }
 
-        $hasBody = false;
-        $hasJson = false;
+        $hasFormBody = false;
+        $hasJsonBody = false;
+        $hasURIVariables = false;
 
         $body .= ''.PHP_EOL;
-
-        //We only create a form body if one is needed. This string gets set 
-        //to '' after it is used.
-        $body .= '$formBody = null;'.PHP_EOL;
-        $body .= '$jsonParams = [];'.PHP_EOL;
-        
         foreach ($this->operationDefinition->getParameters() as $operationParameter) {
 
             if ($operationParameter->getLocation() === 'postField' ||
                 $operationParameter->getLocation() === 'postFile') {
-                $body .= '$formBody = new \Artax\FormBody;'.PHP_EOL;
-                break;
+                $hasFormBody = true;
             }
-            
+            if ($operationParameter->getLocation() === 'json') {
+                $hasJsonBody = true;
+            }
+
+            if ($operationParameter->getLocation() === 'uri') {
+                $hasURIVariables = true;
+            }
         }
 
+        if ($hasURIVariables) {
+            $body .= '$uriTemplate = new \ArtaxApiBuilder\Service\UriTemplate\UriTemplate();'.PHP_EOL;
+            $body .= '$url = $uriTemplate->expand($url, $this->parameters);'.PHP_EOL;
+        }
+
+        if ($hasFormBody) {
+            $body .= '$formBody = new \Artax\FormBody;'.PHP_EOL;
+        }
+
+        if ($hasJsonBody == true) {
+            $body .= '$jsonParams = [];'.PHP_EOL;
+        }
+        
+        //TODO - check for multiple body types, either here or better yet in
+        //operation definition.
 
         foreach ($this->operationDefinition->getParameters() as $operationParameter) {
-
             $body .= sprintf(
                 'if (array_key_exists(\'%s\', $this->parameters) == true) {'.PHP_EOL,
                 $operationParameter->getName()
             );
 
-
-            
             switch($operationParameter->getLocation()) {
 
                 case 'postField': {     
@@ -242,8 +264,6 @@ END;
                         $operationParameter->getName(),
                         $operationParameter->getName()
                     );
-
-                    $hasBody = true;
                     break;
                 }
 
@@ -253,7 +273,6 @@ END;
                         $operationParameter->getName(),
                         $operationParameter->getName()
                     );
-                    $hasBody = true;
                     break;
                 }
                     
@@ -264,7 +283,6 @@ END;
                         $operationParameter->getName(),
                         $operationParameter->getName()
                     );
-                    $hasJson = true;
                     break;
                 }
 
@@ -290,12 +308,14 @@ END;
             $body .= '}'.PHP_EOL;
         }
 
-        if ($hasBody == true) {
+        $body .= PHP_EOL;
+        $body .= '//Parameters are parsed and set, lets prepare the request'.PHP_EOL;
+        
+        if ($hasFormBody == true) {
             $body .= '$request->setBody($formBody);'.PHP_EOL;
         }
 
-        if ($hasJson == true) {
-
+        if ($hasJsonBody == true) {
             $body .= 'if (count($jsonParams)) {'.PHP_EOL;
             $body .= '    $jsonBody = json_encode($jsonParams);'.PHP_EOL;
             $body .= '    $request->setHeader("Content-Type", "application/json");'.PHP_EOL;
@@ -317,15 +337,12 @@ END;
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
     
-    
     /**
      * 
      */
     function addAccessorMethods() {
         foreach($this->operationDefinition->getParameters() as $parameter) {
-
             $translatedParam = $this->apiGenerator->translateParameter($parameter->getName());
-            
             $methodGenerator = new MethodGenerator('set'.ucfirst($translatedParam));
             $body = sprintf('$this->parameters[\'%s\'] = $%s;', $parameter->getName(), $translatedParam);
             $methodGenerator->setBody($body);
@@ -403,6 +420,8 @@ END;
         }
 
         $body .= '$response = $this->api->callAPI($request);'.PHP_EOL;
+        $body .= '$this->response = $response;'.PHP_EOL;
+        
 
         return $body; 
     }
@@ -411,8 +430,13 @@ END;
         $body = '';
         $responseClass = $this->operationDefinition->getResponseClass();
         $responseFactory = $this->operationDefinition->getResponseFactory();
+        $responseCallable = $this->operationDefinition->getResponseCallable();
 
-        if ($responseFactory) {
+        if ($responseCallable) {
+            //HMMM
+            exit(0);
+        }
+        else if ($responseFactory) {
             //Response is turned by $responseFactory into $responseClass
             $body .= <<< END
 \$instance = \\$responseClass::createFromResponse(\$response, \$this);
@@ -429,6 +453,7 @@ return \$instance;
 END;
         }
         else {
+            //TODO - should this be like this or just return $response?
             //No hydrating of data done.
             $body .= 'return $response->getBody();';
         }
@@ -443,7 +468,6 @@ END;
     private function generateExecuteDocBlock($methodDescription) {
 
         $responseClass = $this->operationDefinition->getResponseClass();
-//        $responseFactory = $this->operationDefinition->getResponseFactory();
         $docBlock = new DocBlockGenerator($methodDescription, null);
         if ($responseClass) {
             $tags[] = new GenericTag('return', '\\'.$responseClass);

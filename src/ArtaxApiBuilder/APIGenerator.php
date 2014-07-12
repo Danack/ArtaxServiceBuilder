@@ -644,7 +644,10 @@ END;
 
         $operation->setName($operationName);
         $operation->setURL($baseURL);//Do this first, as it can be overwritten
-        $operation->setFromServiceDescription($operationDescription, $this);
+        //TODO use Artax\URI
+        
+        
+        $operation->setFromServiceDescription($operationDescription, $baseURL, $this);
 
         return $operation;
     }

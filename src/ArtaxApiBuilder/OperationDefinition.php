@@ -153,7 +153,7 @@ class OperationDefinition {
     /**
      * @param $description
      */
-    function setFromServiceDescription($description, APIGenerator $api) {
+    function setFromServiceDescription($description, $baseURL, APIGenerator $api) {
 
         $operationParams = [
             "extends", 
@@ -176,11 +176,17 @@ class OperationDefinition {
         //Yep, guzzle switches between baseURL and URI
         //@TODO - allow URL or URI in both.
         if (isset($description['uri'])) {
-            $this->setURL($description['uri']);
+            
+            if (stripos($description['uri'], 'http') === 0) {
+                //It's an absolute URL
+                $this->setURL($description['uri']);
+            }
+            else {
+                //TODO - use \Artax\URI for RFC compliant combining.
+                $this->setURL($baseURL.$description['uri']);
+            }
         }
-        
-        
-        
+
         if (isset($description["parameters"])) {
             foreach ($description["parameters"] as $paramName => $parameterDescription) {
                 $parameter = new Parameter($paramName);

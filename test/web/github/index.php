@@ -39,6 +39,16 @@ try {
         showAddEmailForm();
         echo "<p><a href='/github/index.php?action=delete'>Delete authority</a></p>";
         echo "<p><a href='/github/index.php?action=revoke'>Revoke authority</a></p>";
+
+
+        try {
+            showRepoTags($accessResponse, 'Danack', 'Auryn');
+        }
+        catch(AABTest\GithubAPI\GithubAPIException $gae) {
+            echo "Exception caught: ".$gae->getMessage();
+            var_dump($gae->getResponse()->getBody());
+        }
+        
     }
 }
 catch(AABTest\GithubAPI\GithubAPIException $gae) {
@@ -121,6 +131,32 @@ function showGithubStatus(AABTest\Github\AccessResponse $accessResponse) {
         echo "Address ".$email->email." primary = ".$email->primary."<br/>";
     }
 }
+
+
+function showRepoTags(AABTest\Github\AccessResponse $accessResponse, $username, $repo) {
+    $api = new \AABTest\GithubAPI\GithubAPI();
+    $command = $api->listRepoTags('token '.$accessResponse->accessToken, $username, $repo);
+    $repoTags = $command->execute();
+    foreach ($repoTags->getIterator() as $repoTag) {
+        echo "Tag name: ".$repoTag->name." sha ".$repoTag->commitSHA."<br/>";
+    }
+
+    $response = $command->getResponse();
+    
+    $headers = $response->getAllHeaders();
+    var_dump($headers);
+}
+
+
+//'X-RateLimit-Limit' => 5000
+//'X-RateLimit-Remaining' => 4989
+//'X-RateLimit-Reset' => 1405170314
+
+//'X-RateLimit-Limit'  => '60'
+//'X-RateLimit-Remaining' => '59'
+//'X-RateLimit-Reset' => '1405174023'
+
+
 
 /**
  * @param $clientID
