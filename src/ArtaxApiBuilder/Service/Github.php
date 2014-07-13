@@ -43,6 +43,27 @@ class Github {
     const SCOPE_PUBLIC_KEY_READ = 'read:public_key'; //	List and view details for public keys.
     const SCOPE_PUBLIC_KEY_WRITE  = 'write:public_key'; //	Create, list, and view details for public keys.
     const SCOPE_PUBLIC_KEY_ADMIN = 'admin:public_key'; //	Fully manage public keys.
+    
+    static public $scopeList = [
+        self::SCOPE_USER => "Grants read/write access to profile info only. Note that this scope includes user:email and user:follow.",
+        self::SCOPE_USER_FOLLOW => "Grants access to follow or unfollow other users.",
+        self::SCOPE_PUBLIC_REPO => "Grants read/write access to code, commit statuses, and deployment statuses for public repositories and organizations.",
+        self::SCOPE_REPO => "Grants read/write access to code, commit statuses, and deployment statuses for public and private repositories and organizations.",
+        self::SCOPE_REPO_DEPLOYMENT => "Grants access to deployment statuses for public and private repositories. This scope is only necessary to grant other users or services access to deployment statuses, without granting access to the code.",
+        self::SCOPE_REPO_STATUS => "Grants read/write access to public and private repository commit statuses. This scope is only necessary to grant other users or services access to private repository commit statuses without granting access to the code.",
+        self::SCOPE_DELETE_REPO => "Grants access to delete adminable repositories.",
+        self::SCOPE_NOTIFICATIONS => "Grants read access to a user’s notifications. repo also provides this access.",
+        self::SCOPE_GIST => "Grants write access to gists.",
+        self::SCOPE_REPO_HOOK_READ => "Grants read and ping access to hooks in public or private repositories.",
+        self::SCOPE_REPO_HOOK_WRITE => "Grants read, write, and ping access to hooks in public or private repositories.",
+        self::SCOPE_REPO_HOOK_ADMIN => "Grants read, write, ping, and delete access to hooks in public or private repositories.",
+        self::SCOPE_ORG_READ => "Read-only access to organization, teams, and membership.",
+        self::SCOPE_ORG_WRITE => "Publicize and unpublicize organization membership.",
+        self::SCOPE_ORG_ADMIN => "Fully manage organization, teams, and memberships.",
+        self::SCOPE_PUBLIC_KEY_READ => "List and view details for public keys.",
+        self::SCOPE_PUBLIC_KEY_WRITE  => "Create, list, and view details for public keys.",
+        self::SCOPE_PUBLIC_KEY_ADMIN => "Fully manage public keys.",
+    ];
 
     const PERMISSION_EMAIL_READ = 'PERMISSION_EMAIL_READ';
     const PERMISSION_EMAIL_WRITE = 'PERMISSION_EMAIL_WRITE';
@@ -55,8 +76,7 @@ class Github {
     const PERMISSION_USER_FOLLOW_READ = 'PERMISSION_USER_FOLLOW_READ';
     const PERMISSION_USER_FOLLOW_WRITE = 'PERMISSION_USER_FOLLOW_WRITE';
     const PERMISSION_USER_FOLLOW_ADMIN = 'PERMISSION_USER_FOLLOW_ADMIN';
-
-
+    
     //code, commit statuses, and deployment statuses
     
     const PERMISSION_CODE_READ = 'PERMISSION_CODE_READ';

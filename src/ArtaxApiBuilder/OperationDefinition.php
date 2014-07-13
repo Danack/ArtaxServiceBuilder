@@ -177,7 +177,8 @@ class OperationDefinition {
         //@TODO - allow URL or URI in both.
         if (isset($description['uri'])) {
             
-            if (stripos($description['uri'], 'http') === 0) {
+            if (stripos($description['uri'], 'http') === 0 || 
+                (isset($description['uriIsAbsolute']) && $description['uriIsAbsolute'])) {
                 //It's an absolute URL
                 $this->setURL($description['uri']);
             }

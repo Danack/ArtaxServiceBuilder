@@ -80,7 +80,6 @@ class OperationGenerator {
             $propertyGenerator->setDocBlock($docBlock);
             $this->classGenerator->addPropertyFromGenerator($propertyGenerator);
         }
-
         
         $docBlock = new DocBlockGenerator('Get the last response.');
         $tags[] = new GenericTag('return', '\Artax\Response');
@@ -194,17 +193,30 @@ END;
         $url = $this->operationDefinition->getURL();
         $body .= sprintf('$url = "%s";'.PHP_EOL, addslashes($url));
         $body .= sprintf('$request->setMethod(\'%s\');'.PHP_EOL, $this->operationDefinition->getHttpMethod());
+
+
+
+
         $body .= '$queryParameters = [];'.PHP_EOL;
 
         $body .= ''.PHP_EOL;
-        $body .= '//Add parameters that are defined at the API level, not the'.PHP_EOL;
-        $body .= '//operation level'.PHP_EOL;
+
+        $first = true;
         $apiParameters = $this->apiGenerator->getAPIParameters();
         foreach ($this->operationDefinition->getParameters() as $operationParameter) {
+
             foreach ($apiParameters as $apiParameter) {
                 if ($apiParameter === $operationParameter->getName()) {
 
+                    if ($first) {
+                        $body .= '//Add parameters that are defined at the API level, not the'.PHP_EOL;
+                        $body .= '//operation level'.PHP_EOL;
+                        $first = false;
+                    }
+
                     $translatedParam = ucfirst($this->apiGenerator->translateParameter($operationParameter->getName()));
+                    //TODO - this is wrong...they should be stored in just $params, then copied to query params
+                    //if they are actually sent in the query.
                     $body .= sprintf(
                             "\$queryParameters['%s'] = \$this->api->get%s();",
                             $apiParameter,
@@ -214,6 +226,7 @@ END;
             }
         }
 
+        $hasQueryParams = false;
         $hasFormBody = false;
         $hasJsonBody = false;
         $hasURIVariables = false;
@@ -231,6 +244,15 @@ END;
 
             if ($operationParameter->getLocation() === 'uri') {
                 $hasURIVariables = true;
+            }
+
+            if ($operationParameter->getLocation() === 'query') {
+                $hasQueryParams = true;
+            }
+
+            if ($operationParameter->getLocation() === 'absoluteURL') {
+                //$body .= '$url = '
+                //TODO - throw an error if both absoluteURL and uri variables are set
             }
         }
 
@@ -251,16 +273,30 @@ END;
         //operation definition.
 
         foreach ($this->operationDefinition->getParameters() as $operationParameter) {
-            $body .= sprintf(
-                'if (array_key_exists(\'%s\', $this->parameters) == true) {'.PHP_EOL,
-                $operationParameter->getName()
-            );
+            
+            if ($operationParameter->getIsOptional() == true) {
+                $body .= sprintf(
+                    'if (array_key_exists(\'%s\', $this->parameters) == true) {'.PHP_EOL,
+                    $operationParameter->getName()
+                );
+                $indent = '   '; //$t for tab
+            }
+            else {
+                $indent = '';
+            }
 
             switch($operationParameter->getLocation()) {
-
-                case 'postField': {     
+                case 'absoluteURL': {
                     $body .= sprintf(
-                        '    $formBody->addField(\'%s\', $this->parameters[\'%s\']);'.PHP_EOL,
+                        $indent.'$url = $this->parameters[\'%s\'];'.PHP_EOL,
+                        $operationParameter->getName()
+                    );
+                    break;
+                }
+
+                case 'postField': {
+                    $body .= sprintf(
+                        $indent.'$formBody->addField(\'%s\', $this->parameters[\'%s\']);'.PHP_EOL,
                         $operationParameter->getName(),
                         $operationParameter->getName()
                     );
@@ -269,17 +305,16 @@ END;
 
                 case 'postFile': {
                     $body .= sprintf(
-                        '    $formBody->addFileField(\'%s\', $this->parameters[\'%s\']);'.PHP_EOL,
+                        $indent.'$formBody->addFileField(\'%s\', $this->parameters[\'%s\']);'.PHP_EOL,
                         $operationParameter->getName(),
                         $operationParameter->getName()
                     );
                     break;
                 }
-                    
-                    
+
                 case 'json': {
                     $body .= sprintf(
-                        '    $jsonParams[\'%s\'] = $this->parameters[\'%s\'];'.PHP_EOL,
+                        $indent.'$jsonParams[\'%s\'] = $this->parameters[\'%s\'];'.PHP_EOL,
                         $operationParameter->getName(),
                         $operationParameter->getName()
                     );
@@ -287,8 +322,8 @@ END;
                 }
 
                 case ('header'): {
-                    $body .= sprintf( 
-                        '    $request->setHeader(\'%s\', $this->parameters[\'%s\']);'.PHP_EOL,
+                    $body .= sprintf(
+                        $indent.'$request->setHeader(\'%s\', $this->parameters[\'%s\']);'.PHP_EOL,
                         $operationParameter->getName(),
                         $operationParameter->getName()
                     );
@@ -298,14 +333,16 @@ END;
                 default:
                 case 'query': {
                     $body .= sprintf(
-                        '    $queryParameters[\'%s\'] = $this->parameters[\'%s\'];'.PHP_EOL,
+                        $indent.'$queryParameters[\'%s\'] = $this->parameters[\'%s\'];'.PHP_EOL,
                         $operationParameter->getName(),
                         $operationParameter->getName()
                     );
                 }
             }
 
-            $body .= '}'.PHP_EOL;
+            if ($operationParameter->getIsOptional() == true) {
+                $body .= '}'.PHP_EOL;
+            }
         }
 
         $body .= PHP_EOL;
@@ -323,12 +360,14 @@ END;
             $body .= '}'.PHP_EOL;
         }
 
-        $body .= '$uri = $url;'.PHP_EOL;
-        $body .= 'if (count($queryParameters)) {'.PHP_EOL;
-        $body .= '    $uri = $url.\'?\'.http_build_query($queryParameters, \'\', \'&\', PHP_QUERY_RFC3986);'.PHP_EOL;
-        $body .= '}'.PHP_EOL;
+        if ($hasQueryParams) {
+            $body .= '$url = $url;'.PHP_EOL;
+            $body .= 'if (count($queryParameters)) {'.PHP_EOL;
+            $body .= '    $url = $url.\'?\'.http_build_query($queryParameters, \'\', \'&\', PHP_QUERY_RFC3986);'.PHP_EOL;
+            $body .= '}'.PHP_EOL;
+        }
 
-        $body .= '$request->setUri($uri);'.PHP_EOL;
+        $body .= '$request->setUri($url);'.PHP_EOL;
         $body .= ''.PHP_EOL;
         $body .= 'return $request;'.PHP_EOL;
 
