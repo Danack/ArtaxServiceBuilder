@@ -38,7 +38,7 @@ namespace AABTest;
 trait DataMapper {
 
     /**
-     * @param $data The map of how the data is mapped from the PHP object from the structure returned in the API.
+     * @param $data array The map of how the data is mapped from the PHP object from the structure returned in the API.
      * @return static An instance of the class that the trait is used in. 'Static' is meant to be the 'late static class' - not many IDEs support this DOC comment yet.
      * @throws DataMapperException
      */
@@ -51,8 +51,7 @@ trait DataMapper {
         $instance->mapPropertiesFromJSON($jsonData);
         return $instance;
     }
-
-
+    
     
     /**
      * @param $data
@@ -162,6 +161,13 @@ trait DataMapper {
         }
         if(array_key_exists('multiple', $dataMapElement) == TRUE){
             $multiple = $dataMapElement['multiple'];
+        }
+
+        if ($sourceValue === null) {
+            //TODO - add 'optional' == true check
+            //Or even better a nullable option?
+            $this->{$classVariableName} = null;
+            return;
         }
 
         if($multiple == TRUE){

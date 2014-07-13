@@ -2,14 +2,11 @@
 
 require "githubBootstrap.php";
 
-$action = getVariable('action');
+use AABTest\GithubAPI\GithubAPI;
+use AABTest\Github\AccessResponse;
 
-if ($action === 'delete') {
-    unsetSessionVariable('githubAccess');
-}
-else if ($action == 'revoke') {
-    echo "Not implemented yet";
-}
+use ArtaxApiBuilder\Service\StoredLink;
+
 
 echo <<< END
 
@@ -17,6 +14,20 @@ echo <<< END
 <body>
 <h3><a href='/'>Oauth test home</a> </h3>
 END;
+
+//These actions need to be done before the rest of the page.
+$action = getVariable('action');
+switch ($action) {
+
+    case('delete') : {
+        unsetSessionVariable('githubAccess');
+        break;
+    }
+    case('revoke') : {
+        echo "Not implemented yet.";
+        break;
+    }
+}
 
 
 /** @var \AABTest\Github\AccessResponse */
@@ -26,29 +37,30 @@ try {
 
     if ($accessResponse == null) {
         echo "<p>You are not github authorised.</p>";
-        createOauthRequest();
+
+//        $scopes = [
+//            \ArtaxApiBuilder\Service\Github::SCOPE_USER_EMAIL,
+//            \ArtaxApiBuilder\Service\Github::SCOPE_ORG_READ,
+//            \ArtaxApiBuilder\Service\Github::SCOPE_USER
+//        ];
+        //createOauthRequest();
+        
+        processUnauthorizedActions();
+        
     }
     else {
-        
-        if ($action == 'addEmail') {
-            processAddEmail($accessResponse);
-        }
-        
+      
         echo "<p>You are github authorised.</p>";
-        showGithubStatus($accessResponse);
-        showAddEmailForm();
-        echo "<p><a href='/github/index.php?action=delete'>Delete authority</a></p>";
-        echo "<p><a href='/github/index.php?action=revoke'>Revoke authority</a></p>";
-
 
         try {
-            showRepoTags($accessResponse, 'Danack', 'Auryn');
+            processAction($accessResponse);
         }
         catch(AABTest\GithubAPI\GithubAPIException $gae) {
             echo "Exception caught: ".$gae->getMessage();
             var_dump($gae->getResponse()->getBody());
         }
-        
+
+        showActionLinks();
     }
 }
 catch(AABTest\GithubAPI\GithubAPIException $gae) {
@@ -63,6 +75,100 @@ echo <<< END
 </html>
 
 END;
+
+
+function processUnauthorizedActions() {
+
+    $action = getVariable('action');
+
+    switch($action) {
+
+        case('makeOauthRequest'): {
+            makeOauthRequest();
+            break;
+        }
+        
+        
+        default: {
+            showScopesForm();
+            break;
+        }
+    }
+}
+
+
+function processAction(AccessResponse $accessResponse) {
+
+    $action = getVariable('action');
+
+    if ($action === 'delete') {
+        
+    }
+    else if ($action == 'revoke') {
+        echo "Not implemented yet";
+    }
+
+
+    switch($action) {
+        case('addEmail'): {
+            processAddEmail($accessResponse);
+            break;
+        }
+            
+        case ('showMoreResults'): {
+            showMoreResults($accessResponse);
+            break;
+        }
+
+        case('showAddEmailForm'): {
+            showAddEmailForm();
+            break;
+        }
+
+        case('showAuthorizations'): {
+            showAuthorizations($accessResponse);
+            break;
+        }
+
+        case('showEmails'): {
+            showGithubEmails($accessResponse);
+            break;
+        }
+
+        case('showRepoCommits'): {
+            showRepoCommits($accessResponse, 'Danack', 'Auryn');
+            break;
+        }
+
+        case('showRepoTags'): {
+            showRepoTags($accessResponse, 'Danack', 'Auryn');
+            break;
+        }
+    }
+}
+
+
+
+function showActionLinks() {
+
+    $actions = [
+        'showEmails' => 'Show emails',
+        'showAddEmailForm' => 'Add email',
+        'showRepoTags' => 'List repo tags',
+        'showRepoCommits' => 'List repo commits',
+        'showAuthorizations' => 'Show authorizations',
+        'delete' => 'Forget authority',
+        'revoke' => 'Revoke authority',
+    ];
+    
+    foreach ($actions as $action => $description) {
+        printf(
+            "<a href='/github/index.php?action=%s'>%s</a> ",
+            $action,
+            $description
+        );
+    }
+}
 
 
 function getAuthorisations() {
@@ -95,16 +201,7 @@ function processAddEmail($accessResponse) {
 
     $request->setBody(json_encode(["Dantheman@example.com"]));
 
-    echo "Request uri is ".$request->getUri()."<br/>";
-    echo "Body is:";
-    var_dump($request->getBody());
-    echo "Request method is ".$request->getMethod()."<br/>";
-
-    var_dump($request->getAllHeaders());
-
     $response = $emailCommand->dispatch($request);
-
-    var_dump($response);
 }
 
 
@@ -122,7 +219,7 @@ END;
     echo $output;
 }
 
-function showGithubStatus(AABTest\Github\AccessResponse $accessResponse) {
+function showGithubEmails(AABTest\Github\AccessResponse $accessResponse) {
     $api = new \AABTest\GithubAPI\GithubAPI();
     $emailCommand = $api->getUserEmails('token '.$accessResponse->accessToken);
     $emailList = $emailCommand->execute();
@@ -133,6 +230,109 @@ function showGithubStatus(AABTest\Github\AccessResponse $accessResponse) {
 }
 
 
+function showAuthorizations(AABTest\Github\AccessResponse $accessResponse) {
+    $api = new GithubAPI();
+    $authCommand = $api->getAuthorizations('token '.$accessResponse->accessToken);
+
+    $authorisations = $authCommand->execute();
+
+    foreach($authorisations->getIterator() as $authorisation) {
+        echo "Application: ".$authorisation->application."<br/>";
+        echo "Scopes:".implode($authorisation->scopes)."<br/>";
+        echo "<br/>";
+    }
+}
+
+
+function displayCommits(\AABTest\Github\Commits $commits) {
+
+    echo "<table style='font-size: 12px'>";
+    echo "<tr><th>Author</th><th style='width: 500px'>Message</th><th>Date</th></tr>";
+
+    foreach ($commits->getIterator() as $commit) {
+
+        echo "<tr><td>";
+        if ($commit->author) {
+            printf(
+                "<a href='%s'>%s</a>",
+                $commit->author->url,
+                $commit->author->login
+            );
+        }
+        else {
+            echo "Unknown";
+        }
+        echo "</td><td style='width: 500px'>";
+        echo $commit->commitInfo->message;
+        echo "</td><td>";
+        echo $commit->commitInfo->committerDate;
+        echo "</td>";
+        echo "</tr>";
+    }
+
+    echo "</table>";
+
+}
+
+
+
+function displayAndSaveLinks(\Artax\Response $response) {
+    $pager = new \ArtaxApiBuilder\Service\GithubLinkParser($response);
+    $links = $pager->parseResponse();
+
+
+    foreach ($links as $link) {
+        $storedLink = new StoredLink($link);
+        printf(
+            "<a href='/github/index.php?action=showMoreResults&resultKey=%s'>%s</a><br/>",
+            $storedLink->getKey(),
+            $link->description
+        );
+    }
+}
+
+function showRepoCommits(AABTest\Github\AccessResponse $accessResponse, $username, $repo) {
+    $api = new \AABTest\GithubAPI\GithubAPI();
+    $command = $api->listRepoCommits('token '.$accessResponse->accessToken, $username, $repo);
+    $command->setAuthor('Danack');
+    $commits = $command->execute();
+    
+    displayCommits($commits);
+    $response = $command->getResponse();
+    displayAndSaveLinks($response);
+}
+
+
+function showMoreResults(AccessResponse $accessResponse) {
+
+    $resultKey = getVariable('resultKey');
+    
+    if (!$resultKey) {
+        echo "Couldn't read resultKey, can't show more results.";
+        return;
+    }
+    
+    $storedLink = StoredLink::createFromKey($resultKey);
+    if (!$storedLink) {
+        echo "Couldn't find storedLink from key $resultKey, can't show more results.";
+        return;
+    }
+
+    $api = new \AABTest\GithubAPI\GithubAPI();
+    $command = $api->listRepoCommitsPaginate(
+        'token '.$accessResponse->accessToken,
+        $storedLink->link->url
+    );
+
+    $commits = $command->execute();
+
+    displayCommits($commits);
+    $response = $command->getResponse();
+    displayAndSaveLinks($response);
+}
+
+
+
 function showRepoTags(AABTest\Github\AccessResponse $accessResponse, $username, $repo) {
     $api = new \AABTest\GithubAPI\GithubAPI();
     $command = $api->listRepoTags('token '.$accessResponse->accessToken, $username, $repo);
@@ -140,21 +340,7 @@ function showRepoTags(AABTest\Github\AccessResponse $accessResponse, $username, 
     foreach ($repoTags->getIterator() as $repoTag) {
         echo "Tag name: ".$repoTag->name." sha ".$repoTag->commitSHA."<br/>";
     }
-
-    $response = $command->getResponse();
-    
-    $headers = $response->getAllHeaders();
-    var_dump($headers);
 }
-
-
-//'X-RateLimit-Limit' => 5000
-//'X-RateLimit-Remaining' => 4989
-//'X-RateLimit-Reset' => 1405170314
-
-//'X-RateLimit-Limit'  => '60'
-//'X-RateLimit-Remaining' => '59'
-//'X-RateLimit-Reset' => '1405174023'
 
 
 
@@ -175,19 +361,64 @@ function createAuthURL($clientID, $scopes, $redirectURI, $secret) {
     return $url;
 }
 
+function showScopesForm() {
+
+    echo "<form action='/github/index.php' method='get'>";
+
+
+    echo "<table width='750px'>";
+    foreach (\ArtaxApiBuilder\Service\Github::$scopeList as $scope => $description) {
+
+        echo "<tr>";
+
+        echo "<td valign='top'>";
+        echo "<input type='checkbox' name='scopes[]' value='$scope'/>";
+        echo "</td>";
+
+        echo "<td valign='top'>";
+        echo "$scope";
+        echo "</td>";
+
+        echo "<td valign='top'>";
+        echo $description;
+        echo "</td>";
+        
+        echo "</tr>";
+    }
+
+    echo "<tr>";
+    echo "<td valign='top' colspan='2' align='right'>";
+    echo "</td><td>";
+    echo "<input type='submit' value='Make auth request'/>";
+    echo "</td>";    
+    echo "</tr>";
+    
+    echo "</table>";
+
+
+    echo "
+        <input type='hidden' name='action' value='makeOauthRequest' />
+        
+    </form>";
+    
+
+}
+
+
+function makeOauthRequest() {
+    $scopes = getVariable('scopes');
+    echo "<p>Requesting scopes: ".implode(', ', $scopes).".</p>";
+    showOauthRequest($scopes);
+}
+
 
 /**
  * 
  */
-function createOauthRequest() {
+function showOauthRequest($scopes) {
     
     try {
-        $scopes = [
-            \ArtaxApiBuilder\Service\Github::SCOPE_USER_EMAIL,
-            \ArtaxApiBuilder\Service\Github::SCOPE_ORG_READ,
-            \ArtaxApiBuilder\Service\Github::SCOPE_USER
-        ];
-
+        
         $unguessable = openssl_random_pseudo_bytes(16);
         $unguessable = bin2hex($unguessable);
 

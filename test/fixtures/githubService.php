@@ -33,6 +33,19 @@ return array (
                 ),
             )
         ),
+
+
+//https://developer.github.com/v3/oauth_authorizations/
+
+        'getAuthorizations' => array(
+            'uri' => '/authorizations',
+            'extends' => 'defaultGetOauthOperation',
+            "responseClass" => 'AABTest\Github\Authorizations',
+        ),
+
+    
+        
+        
         
         //Accept: application/json
         'accessToken' => [
@@ -125,6 +138,38 @@ return array (
                 ),
             )
         ),
+        
+        
+        
+        
+        
+//https://developer.github.com/v3/rate_limit/
+        //GET /rate_limit
+        /*
+        
+        {
+  "resources": {
+    "core": {
+      "limit": 5000,
+      "remaining": 4999,
+      "reset": 1372700873
+    },
+    "search": {
+      "limit": 20,
+      "remaining": 18,
+      "reset": 1372697452
+    }
+  },
+  "rate": {
+    "limit": 5000,
+    "remaining": 4999,
+    "reset": 1372700873
+  }
+}
+        
+        */
+        
+        
 
         
         //List user repositories
@@ -142,6 +187,8 @@ return array (
         //GET /repositories
 
 
+        
+        
         //Create
         //POST /user/repos
         
@@ -190,8 +237,80 @@ return array (
             ),
         ),
         
-        
+        'listRepoCommitsPaginate' => array(
+            'extends' => 'defaultGetOauthOperation',
+            //'uri' => '{url}',
+            "responseClass" => 'AABTest\Github\Commits',
+            'parameters' => array(
+                'pageURL' => array(
+                    "location" => "absoluteURL",
+                ),
+            ),
+        ),
 
+        //https://developer.github.com/v3/repos/commits/
+        'listRepoCommits' => array(
+            'extends' => 'defaultGetOauthOperation',
+            'uri' => '/repos/{owner}/{repo}/commits',
+            "responseClass" => 'AABTest\Github\Commits',
+            'parameters' => array(
+                'owner' => array(
+                    "location" => "uri",
+                ),
+                'repo' => array(
+                    "location" => "uri",
+                ),
+                'sha' => array(
+                    'description' => 'SHA or branch to start listing commits from.',
+                    'type' => 'string',
+                    'optional' => 'true'
+                ),
+                'path' => array(
+                    'description' => 'Only commits containing this file path will be returned.',
+                    'type' => 'string',
+                    'optional' => 'true'
+                ),
+                'author' => array(
+                    'description' => 'GitHub login or email address by which to filter by commit author.',
+                    'type' => 'string',
+                    'optional' => 'true'
+                ),
+                'since' => array(
+                    'description' => 'Only commits after this date will be returned. This is a timestamp in ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ.',
+                    'type' => 'string',
+                    'optional' => 'true'
+                ),
+                'until' => array(
+                    'description' => 'Only commits before this date will be returned. This is a timestamp in ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ.',
+                    'type' => 'string',
+                    'optional' => 'true'
+                ),
+            ),
+        ),
+
+
+        //GET 
+        //https://developer.github.com/v3/repos/commits/#get-a-single-commit
+
+        'getSingleCommit' => array(
+            'extends' => 'defaultGetOauthOperation',
+            'uri' => '/repos/{owner}/{repo}/commits/{sha}',
+            "responseClass" => 'AABTest\Github\Commit',
+
+            'parameters' => array(
+                'owner' => array(
+                    "location" => "uri",
+                ),
+                'repo' => array(
+                    "location" => "uri",
+                ),
+                'sha' => array(
+                    "location" => "uri",
+                    'description' => 'SHA of the commit to get',
+                    'type' => 'string',
+                ),
+            ),
+        ),
         //List Branches
         //GET /repos/:owner/:repo/branches/:branch
     ),
