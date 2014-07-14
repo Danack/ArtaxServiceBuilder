@@ -15,9 +15,9 @@ require "../webFunctions.php";
 
 //include_once "../../../../flickrKey.php";
 
-define('GITHUB_USER_AGENT', 'Danack_ArtaxAPIBuilder');
-define('GITHUB_CLIENT_ID', '4b3d5330e6af849059a5');
-define('GITHUB_CLIENT_SECRET', '5e16642a8104ba141b94b115a398283fe3f6a930'); //Client Secret 
+define('GITHUB_USER_AGENT', '');
+define('GITHUB_CLIENT_ID', '');
+define('GITHUB_CLIENT_SECRET', ''); //Client Secret 
 
 
 define('SESSION_NAME', 'githubTest');
