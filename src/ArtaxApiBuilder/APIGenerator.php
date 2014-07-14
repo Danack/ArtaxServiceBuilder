@@ -341,34 +341,55 @@ END;
             $operationName = $this->normalizeMethodName($methodName);
             $operationClassName = $this->normalizeClassName($methodName);
             $methodGenerator = new MethodGenerator($operationName);
-            
-            //All required parameters must be passed in when the operation is created.
+
+            $apiParameters = $this->getAPIParameters();
+
+            $body = '';
+
+                //All required parameters must be passed in when the operation is created.
             $requiredParameters = $operation->getRequiredParams();
+            
             $paramsStrings = [];
             $requiredParamsStringsWithDollar = [];
+            $tags = [];
+
+            $requiredParamsStringsWithDollar[] = '$this';
+            
             foreach($requiredParameters as $requiredParam) {
-                $paramsStrings[] = $requiredParam->getName();
-                //TODO - replace with array_map on $paramsStrings
-                $requiredParamsStringsWithDollar[] = '$'.$requiredParam->getName();
+                if (array_key_exists($requiredParam->getName(), $apiParameters) == true) {
+//                    echo $requiredParam->getName();
+                    $requiredParamsStringsWithDollar[] = sprintf(
+                        '$this->get%s()',
+                        $requiredParam->getName()
+                    );
+                }
+                else {
+                    $paramsStrings[] = $requiredParam->getName();
+                    $tags[] = new GenericTag(
+                        'param', 
+                        ''.$requiredParam->getName().' mixed '.$requiredParam->getDescription()
+                    );
+                    //TODO - replace with array_map on $paramsStrings
+                    $requiredParamsStringsWithDollar[] = '$'.$requiredParam->getName();
+                }
             }
 
             $paramString = implode(', ', $requiredParamsStringsWithDollar);
             $methodGenerator->setParameters($paramsStrings);
 
-            //Parameters which are set at the API level need to be passed into the
-            //operation from the API
-            $tags = [];
-            $apiParameters = $this->getAPIParameters();
+            /*
             foreach ($requiredParameters as $param) {
-                if (in_array($param->getName(), $apiParameters) == true) {
+                //if (in_array($param->getName(), $apiParameters) == true) {
+                if (in_array($param->getName(), $apiParameters) == false) {
                     $paramsStrings[] = $param->getName();
+                    
                 }
-                //TODO - allow type defining to work, rather than just mixed.
-                $tags[] = new GenericTag('param', ''.$param->getName().' mixed '.$param->getDescription());
+               // //TODO - allow type defining to work, rather than just mixed.
             }
+            */
 
-            $body = "\$instance = new $operationClassName($paramString);".PHP_EOL;
-            $body .= "\$instance->setAPI(\$this);".PHP_EOL;
+            $body .= "\$instance = new $operationClassName($paramString);".PHP_EOL;
+            //$body .= "\$instance->setAPI(\$this);".PHP_EOL;
             $body .= "return \$instance;".PHP_EOL;
 
             

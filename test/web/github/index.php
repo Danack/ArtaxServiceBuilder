@@ -15,6 +15,10 @@ echo <<< END
 <h3><a href='/'>Oauth test home</a> </h3>
 END;
 
+
+/** @var \AABTest\Github\AccessResponse */
+$accessResponse = getSessionVariable('githubAccess');
+
 //These actions need to be done before the rest of the page.
 $action = getVariable('action');
 switch ($action) {
@@ -24,14 +28,13 @@ switch ($action) {
         break;
     }
     case('revoke') : {
-        echo "Not implemented yet.";
+        revokeAuthority($accessResponse);
         break;
     }
 }
 
 
-/** @var \AABTest\Github\AccessResponse */
-$accessResponse = getSessionVariable('githubAccess');
+
 
 try {
 
@@ -104,9 +107,9 @@ function processAction(AccessResponse $accessResponse) {
     if ($action === 'delete') {
         
     }
-    else if ($action == 'revoke') {
-        echo "Not implemented yet";
-    }
+//    else if ($action == 'revoke') {
+//        echo "Not implemented yet";
+//    }
 
 
     switch($action) {
@@ -185,7 +188,7 @@ function getAuthorisations() {
 
 function processAddEmail($accessResponse) {
 
-    $api = new \AABTest\GithubAPI\GithubAPI();
+    $api = new \AABTest\GithubAPI\GithubAPI(GITHUB_USER_AGENT);
 
     $newEmail = getVariable('email');
     
@@ -196,6 +199,8 @@ function processAddEmail($accessResponse) {
     
     $allowedScopes = getAuthorisations();
     $emailCommand->checkScopeRequirement($allowedScopes);
+
+    $emailCommand->execute();
 
     $request = $emailCommand->createRequest();
 
@@ -220,7 +225,7 @@ END;
 }
 
 function showGithubEmails(AABTest\Github\AccessResponse $accessResponse) {
-    $api = new \AABTest\GithubAPI\GithubAPI();
+    $api = new \AABTest\GithubAPI\GithubAPI(GITHUB_USER_AGENT);
     $emailCommand = $api->getUserEmails('token '.$accessResponse->accessToken);
     $emailList = $emailCommand->execute();
 
@@ -231,9 +236,8 @@ function showGithubEmails(AABTest\Github\AccessResponse $accessResponse) {
 
 
 function showAuthorizations(AABTest\Github\AccessResponse $accessResponse) {
-    $api = new GithubAPI();
+    $api = new GithubAPI(GITHUB_USER_AGENT);
     $authCommand = $api->getAuthorizations('token '.$accessResponse->accessToken);
-
     $authorisations = $authCommand->execute();
 
     foreach($authorisations->getIterator() as $authorisation) {
@@ -292,7 +296,7 @@ function displayAndSaveLinks(\Artax\Response $response) {
 }
 
 function showRepoCommits(AABTest\Github\AccessResponse $accessResponse, $username, $repo) {
-    $api = new \AABTest\GithubAPI\GithubAPI();
+    $api = new \AABTest\GithubAPI\GithubAPI(GITHUB_USER_AGENT);
     $command = $api->listRepoCommits('token '.$accessResponse->accessToken, $username, $repo);
     $command->setAuthor('Danack');
     $commits = $command->execute();
@@ -318,7 +322,7 @@ function showMoreResults(AccessResponse $accessResponse) {
         return;
     }
 
-    $api = new \AABTest\GithubAPI\GithubAPI();
+    $api = new \AABTest\GithubAPI\GithubAPI(GITHUB_USER_AGENT);
     $command = $api->listRepoCommitsPaginate(
         'token '.$accessResponse->accessToken,
         $storedLink->link->url
@@ -332,9 +336,24 @@ function showMoreResults(AccessResponse $accessResponse) {
 }
 
 
+function revokeAuthority(AccessResponse $accessResponse) {
+
+    
+    $api = new \AABTest\GithubAPI\GithubAPI(GITHUB_USER_AGENT);
+    $command = $api->revokeAllAuthority('token '.$accessResponse->accessToken, GITHUB_CLIENT_ID);
+
+    $blah = $command->execute();
+    
+    var_dump($blah);
+    
+    
+    echo "Diplomatic immunity, has been revoked?";
+
+}
+
 
 function showRepoTags(AABTest\Github\AccessResponse $accessResponse, $username, $repo) {
-    $api = new \AABTest\GithubAPI\GithubAPI();
+    $api = new \AABTest\GithubAPI\GithubAPI(GITHUB_USER_AGENT);
     $command = $api->listRepoTags('token '.$accessResponse->accessToken, $username, $repo);
     $repoTags = $command->execute();
     foreach ($repoTags->getIterator() as $repoTag) {

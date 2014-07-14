@@ -9,7 +9,7 @@ namespace ArtaxApiBuilder\Service;
 
 class Github {
 
-    //(no scope)	Grants read-only access to public information (includes public user profile info, public repository info, and gists)
+    //(no scope) Grants read-only access to public information (includes public user profile info, public repository info, and gists)
     
     const SCOPE_USER = 'user'; //	Grants read/write access to profile info only. Note that this scope includes user:email and user:follow.
     

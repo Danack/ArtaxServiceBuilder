@@ -47,6 +47,16 @@ class Commit {
         ['committer', 'committer', 'class' => 'AABTest\Github\Person'],
         ['parents', 'parents', 'class' => 'AABTest\Github\CommitParent', 'multiple' => 'true'],
     );
+
+
+    static function createFromResponse(Response $response, Operation $operation) {
+        $data = $response->getBody();
+        $jsonData = json_decode($data, true);
+
+        return self::createFromJson($jsonData);
+    }
+
+
 }
 
  

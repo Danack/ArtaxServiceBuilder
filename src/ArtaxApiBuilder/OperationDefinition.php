@@ -215,6 +215,9 @@ class OperationDefinition {
             }
         }
     }
+//    
+//    TODO - make the param generation functions be on this class, rather
+//    than spread between the api and operation generator.
 }
 
  

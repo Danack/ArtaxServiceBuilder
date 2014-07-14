@@ -77,21 +77,28 @@ if (true) {
     //$apiGenerator->includePattern('flickr\.people\.get.*');
 }
 
-
+/*
 $apiGenerator->excludeMethods(['defaultGetOperation']);
 $apiGenerator->parseAndAddServiceFromFile(__DIR__.'/fixtures/flickrService.php');
 $apiGenerator->addInterface('AABTest\FlickrAPI');
 $apiGenerator->setFQCN('AABTest\FlickrAPI\FlickrAPI');
 $apiGenerator->generate();
 $apiGenerator->generateInterface('AABTest\FlickrAPI');
+*/
 
-
+$constructorParams = ['userAgent'];
 
 //Start of github
 $apiGenerator = new \ArtaxApiBuilder\APIGenerator(
     $outputDirectory,
-    []
+    $constructorParams
 );
+
+$apiGenerator->addAPIParameter('userAgent');
+
+$apiGenerator->addParameterTranslation([
+    'User-Agent' => 'userAgent',
+]);
 
 
 $apiGenerator->excludeMethods(['defaultGetOperation']);

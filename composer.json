@@ -28,7 +28,8 @@
         "rdlowrey/artax": "dev-master as 0.7.0"
     },
     "require":{
-        "Danack/danack-code": ">=2.4.1"
+        "Danack/danack-code": ">=2.4.1",
+        "danack/danackhttp2": ">=1.2.0"
     },
     "autoload": {
         "psr-0": {

@@ -11,12 +11,12 @@ class Email {
 
     use DataMapper;
 
-    public $email;
+    public $address;
     public $verified;
     public $primary; 
    
     static protected $dataMap = array(
-        ['email', 'email'],
+        ['address', 'email'],
         ['verified', 'verified'],
         ['primary', 'primary'],
     );

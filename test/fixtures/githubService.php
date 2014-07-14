@@ -16,6 +16,11 @@ return array (
                     "description" => "",
                     'default' =>  'application/json',
                 ),
+                'userAgent' => array(
+                    "location" => "header",
+                    "description" => "The shitty oauth2 bearer token", ////: token OAUTH-TOKEN
+                    'sentAs' => 'User-Agent'
+                ),
             )
         ),
 
@@ -29,7 +34,12 @@ return array (
                 ),
                 'Authorization' => array(
                     "location" => "header",
+                    "description" => "The oauth2 bearer token", ////: token OAUTH-TOKEN
+                ),
+                'userAgent' => array(
+                    "location" => "header",
                     "description" => "The shitty oauth2 bearer token", ////: token OAUTH-TOKEN
+                    'sentAs' => 'User-Agent'
                 ),
             )
         ),
@@ -55,19 +65,40 @@ return array (
             "responseClass" => 'AABTest\Github\AccessResponse',
             'parameters' => [
                 'client_id' => [
-                    'description' => 'string Required. The client ID you received from GitHub when you registered.'
+                    'description' => 'string Required. The client ID you received from GitHub when you registered.',
+                    'location' => 'query'
                 ],
                 'client_secret' => [
-                    'description' => 'string Required. The client secret you received from GitHub when you registered.'
+                    'description' => 'string Required. The client secret you received from GitHub when you registered.',
+                    'location' => 'query'
                 ],
                 'code' => [
-                    'description' =>  'string Required. The code you received as a response to Step 1.'
+                    'description' =>  'string Required. The code you received as a response to Step 1.',
+                    'location' => 'query'
                 ],
                 'redirect_uri' => [
+                    'location' => 'query',
                     'description' =>  'string The URL in your app where users will be sent after authorization. See details below about redirect urls.'
                 ]
             ]
         ],
+
+
+        //https://developer.github.com/v3/oauth_authorizations/#revoke-all-authorizations-for-an-application
+        
+        'revokeAllAuthority' => [
+            'extends' => 'defaultGetOauthOperation',
+            'method' => 'DELETE',
+            'uri' => '/applications/{client_id}/tokens',
+
+            'parameters' => array(
+                'client_id' => array(
+                    "location" => "uri",
+                    "description" => "The id of the client.",
+                ),
+            ),
+        ],
+
 
         "getUserEmails" => array(
             "uri" => "https://api.github.com/user/emails",
@@ -84,13 +115,6 @@ return array (
             "uri" => "https://api.github.com/user/emails",
             'extends' => 'defaultGetOauthOperation',
             'summary' => 'Get users email addresses',
-            //'needsSigning' => true,
-            
-//            'permissions' => [
-//                [\ArtaxApiBuilder\Service\Github::PERMISSION_EMAIL_WRITE],
-//                [\ArtaxApiBuilder\Service\Github::PERMISSION_EMAIL_ADMIN]
-//            ],
-
             //TODO - It would be better to have scopes and permissions combined?
             'scopes' => [
                 [\ArtaxApiBuilder\Service\Github::SCOPE_USER],

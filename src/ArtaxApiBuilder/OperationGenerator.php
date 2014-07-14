@@ -202,6 +202,8 @@ END;
         $body .= ''.PHP_EOL;
 
         $first = true;
+        $hasQueryParams = false;
+        
         $apiParameters = $this->apiGenerator->getAPIParameters();
         foreach ($this->operationDefinition->getParameters() as $operationParameter) {
 
@@ -222,11 +224,12 @@ END;
                             $apiParameter,
                             $translatedParam
                         ).PHP_EOL;
+                    $hasQueryParams = true;
                 }
             }
         }
 
-        $hasQueryParams = false;
+        
         $hasFormBody = false;
         $hasJsonBody = false;
         $hasURIVariables = false;
@@ -361,7 +364,7 @@ END;
         }
 
         if ($hasQueryParams) {
-            $body .= '$url = $url;'.PHP_EOL;
+            //$body .= '$url = $url;'.PHP_EOL;
             $body .= 'if (count($queryParameters)) {'.PHP_EOL;
             $body .= '    $url = $url.\'?\'.http_build_query($queryParameters, \'\', \'&\', PHP_QUERY_RFC3986);'.PHP_EOL;
             $body .= '}'.PHP_EOL;
@@ -414,26 +417,47 @@ END;
             $body .= '$this->setParams($defaultParams);'.PHP_EOL;
         }
 
-        $constructorParams = [];
-        foreach ($requiredParameters as $param) {
-            $body .= sprintf(
-                "\$this->parameters['%s'] = $%s;".PHP_EOL,
-                $param->getName(),
-                $param->getName()
-            );
+        $apiParameters = $this->apiGenerator->getAPIParameters();
 
-            $constructorParams[] = $param->getName();
+        $constructorParams = [];
+        $constructorParams[] = new ParameterGenerator('api', 'AABTest\GithubAPI\GithubAPI');
+        
+        $body .= '$this->api = $api;'.PHP_EOL;
+
+        foreach ($requiredParameters as $param) {
+            if (array_key_exists($param->getName(), $apiParameters) == true) {
+                $translatedParam = $this->apiGenerator->translateParameter($param->getName());
+
+                $body .= sprintf(
+                    "\$this->parameters['%s'] = \$api->get%s();".PHP_EOL,
+                    //TODO - make this a function...somewhere
+                    ucfirst($translatedParam),
+                    $translatedParam
+                );
+            }
+            else {
+                $constructorParams[] = $param->getName();
+
+                $body .= sprintf(
+                    "\$this->parameters['%s'] = $%s;".PHP_EOL,
+                    $param->getName(),
+                    $param->getName()
+                );
+                
+            }
         }
 
-        $apiParameters = $this->apiGenerator->getAPIParameters();
         
+        /*
         foreach ($requiredParameters as $param) {
-            if (in_array($param->getName(), $apiParameters) == true) {
+            if (array_key_exists($param->getName(), $apiParameters)) {
+            //if (in_array($param->getName(), $apiParameters) == true) {
                 if (in_array($param->getName(), $constructorParams) == false) { //TODO - how could this be possible?
                     $constructorParams[] = $param->getName();
                 }
             }
-        }
+        } 
+        */
 
         $methodGenerator->setParameters($constructorParams);
         $methodGenerator->setBody($body);
@@ -570,44 +594,6 @@ END;
 
         $docBlock = $this->generateExecuteDocBlock('Dispatch the request for this operation and process the response.Allows you to modify the request before it is sent.');
         
-//        $responseClass = $this->operationDefinition->getResponseClass();
-//        $responseFactory = $this->operationDefinition->getResponseFactory();
-
-//        if ($responseFactory) {
-//            //Response is turned by $responseFactory into $responseClass
-//            $body .= <<< END
-//\$instance = \\$responseClass::createFromResponse(\$response, \$this);
-//
-//return \$instance;
-//END;
-//        }
-//        else if ($responseClass) {
-//            //TODO - encapsulate this to allow re-use in execute
-//            //Response is turned into $responseClass by a static method on that class
-//            $body .= <<< END
-//\$instance = \\$responseClass::createFromResponse(\$response, \$this);
-//
-//return \$instance;
-//END;
-//        }
-//        else {
-//            //No hydrating of data done.
-//            $body .= 'return $response->getBody();';
-//        }
-//
-//        $methodGenerator->setBody($body);
-//        $docBlock = new DocBlockGenerator(
-//            'Dispatch the request for this operation and process the response.', 
-//            'Allows you to modify the request before it is sent.'
-//        );
-//        if ($responseClass) {
-//            $tags[] = new GenericTag('return', '\\'.$responseClass);
-//        }
-//        else {
-//            $tags[] = new GenericTag('return', 'mixed');
-//        }
-//        $docBlock->setTags($tags);
-
         $methodGenerator->setDocBlock($docBlock);
         $methodGenerator->setBody($body);
 
