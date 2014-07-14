@@ -13,31 +13,7 @@ define('FLICKR_KEY', 12345);
 
 $constructorParms = ['api_key'];
 
-function getNamespace($namespaceClass) {
 
-    if (is_object($namespaceClass)) {
-        $namespaceClass = get_class($namespaceClass);
-    }
-
-    $lastSlashPosition = mb_strrpos($namespaceClass, '\\');
-
-    if ($lastSlashPosition !== false) {
-        return mb_substr($namespaceClass, 0, $lastSlashPosition);
-    }
-
-    return "";
-}
-
-
-function getClassName($namespaceClass) {
-    $lastSlashPosition = mb_strrpos($namespaceClass, '\\');
-
-    if ($lastSlashPosition !== false) {
-        return mb_substr($namespaceClass, $lastSlashPosition + 1);
-    }
-
-    return $namespaceClass;
-}
 
 $apiGenerator = new \ArtaxApiBuilder\APIGenerator(
     $outputDirectory,

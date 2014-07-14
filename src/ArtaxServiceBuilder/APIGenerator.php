@@ -14,6 +14,33 @@ use Danack\Code\Generator\ParameterGenerator;
 use Danack\Code\Generator\DocBlock\Tag\GenericTag;
 use Danack\Code\Generator\PropertyGenerator;
 
+function getNamespace($namespaceClass) {
+
+    if (is_object($namespaceClass)) {
+        $namespaceClass = get_class($namespaceClass);
+    }
+
+    $lastSlashPosition = mb_strrpos($namespaceClass, '\\');
+
+    if ($lastSlashPosition !== false) {
+        return mb_substr($namespaceClass, 0, $lastSlashPosition);
+    }
+
+    return "";
+}
+
+
+function getClassName($namespaceClass) {
+    $lastSlashPosition = mb_strrpos($namespaceClass, '\\');
+
+    if ($lastSlashPosition !== false) {
+        return mb_substr($namespaceClass, $lastSlashPosition + 1);
+    }
+
+    return $namespaceClass;
+}
+
+
 /**
  * @param $savePath
  * @throws \RuntimeException
@@ -176,7 +203,7 @@ class APIGenerator {
             $this->fqExceptionClassname =  $this->fqcn.'Exception';
         }
 
-        $this->namespace = getNamespace($this->fqcn);
+        $this->namespace = \ArtaxServiceBuilder\getNamespace($this->fqcn);
     }
 
     /**
@@ -502,8 +529,8 @@ END;
      */
     function generateExceptionClass() {
         
-        $namespace = getNamespace($this->fqcn);
-        $classname = getClassName($this->fqcn);
+        $namespace = \ArtaxServiceBuilder\getNamespace($this->fqcn);
+        $classname = \ArtaxServiceBuilder\getClassName($this->fqcn);
         $exceptionClassname = $classname.'Exception';
 
         if ($namespace) {
