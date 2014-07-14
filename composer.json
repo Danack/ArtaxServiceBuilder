@@ -1,6 +1,6 @@
 {
     "name": "danack/artaxservicebuilder",
-
+ 
     "repositories": [
         {
             "packagist": false
@@ -28,7 +28,7 @@
     },
     "autoload": {
         "psr-0": {
-            "ArtaxApiBuilder": "src/"
+            "ArtaxServiceBuilder": "src/"
         }
     }
 }
