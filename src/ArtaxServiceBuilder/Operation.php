@@ -1,7 +1,7 @@
 <?php
 
 
-namespace ArtaxApiBuilder;
+namespace ArtaxServiceBuilder;
 
 
 interface Operation {

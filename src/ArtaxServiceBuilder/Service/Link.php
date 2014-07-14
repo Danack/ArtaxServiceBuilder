@@ -1,7 +1,7 @@
 <?php
 
 
-namespace ArtaxApiBuilder\Service;
+namespace ArtaxServiceBuilder\Service;
 
 
 class Link {

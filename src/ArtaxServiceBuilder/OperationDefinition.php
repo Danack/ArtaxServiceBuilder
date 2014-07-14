@@ -1,7 +1,7 @@
 <?php
 
 
-namespace ArtaxApiBuilder;
+namespace ArtaxServiceBuilder;
 
 
 class OperationDefinition {
@@ -16,7 +16,7 @@ class OperationDefinition {
     private $scopes = [];
     
     /**
-     * @var \ArtaxApiBuilder\Parameter[]
+     * @var \ArtaxServiceBuilder\Parameter[]
      */
     private $parameters = [];
     private $summary = null;
@@ -110,7 +110,7 @@ class OperationDefinition {
 
     /**
      * Get all the params that are either not optional and don't have a default value 
-     * @return \ArtaxAPIBuilder\Parameter[]
+     * @return \ArtaxServiceBuilder\Parameter[]
      */
     public function getRequiredParams() {
         $requiredParams = [];
@@ -127,7 +127,7 @@ class OperationDefinition {
 
     /**
      * Get all the params that have a default value
-     * @return \ArtaxApiBuilder\Parameter[]
+     * @return \ArtaxServiceBuilder\Parameter[]
      */
     public function getDefaultParams() {
         $defaultParams = [];

@@ -1,7 +1,7 @@
 <?php
 
 
-namespace ArtaxApiBuilder;
+namespace ArtaxServiceBuilder;
 
 
 use Danack\Code\Generator\ClassGenerator;
@@ -94,7 +94,7 @@ class APIGenerator {
     private $normalizeClassCallable = null;
 
     /**
-     * @var \ArtaxApiBuilder\OperationDefinition[]
+     * @var \ArtaxServiceBuilder\OperationDefinition[]
      */
     private $operations = [];
     
@@ -197,7 +197,7 @@ class APIGenerator {
 
 
             
-            $param = new ParameterGenerator('oauthService', 'ArtaxApiBuilder\Service\Oauth1', null);
+            $param = new ParameterGenerator('oauthService', 'ArtaxServiceBuilder\Service\Oauth1', null);
 
             $param->setDefaultValue(null);
             $params[] = $param;
@@ -235,7 +235,7 @@ class APIGenerator {
         $methodGenerator->setParameters([$requestParam]);
         
         $body = 'if ($this->oauthService == null) {'.PHP_EOL;;
-        $body .= '    throw new \ArtaxApiBuilder\ArtaxServiceException("oauthService is null, so cannot call request that requires oauth.");'.PHP_EOL;;
+        $body .= '    throw new \ArtaxServiceBuilder\ArtaxServiceException("oauthService is null, so cannot call request that requires oauth.");'.PHP_EOL;;
         $body .= '}'.PHP_EOL;;
 
         $body .= 'return $this->oauthService->signRequest($request);'.PHP_EOL;
@@ -498,7 +498,7 @@ END;
 
 
     /**
-     * @throws \ArtaxApiBuilder\APIBuilderException
+     * @throws \ArtaxServiceBuilder\APIBuilderException
      */
     function generateExceptionClass() {
         
@@ -646,7 +646,7 @@ END;
      * @param $operationName
      * @param $baseURL
      * @return OperationDefinition
-     * @throws \ArtaxApiBuilder\APIBuilderException
+     * @throws \ArtaxServiceBuilder\APIBuilderException
      */
     function createOperationDescription($service, $operationName, $baseURL) {
 
@@ -743,7 +743,7 @@ END;
      */
     private function addProperties() {
         $this->apiParameters;
-        $nativeProperties = ['oauthService' => 'ArtaxApiBuilder\Service\Oauth1'];
+        $nativeProperties = ['oauthService' => 'ArtaxServiceBuilder\Service\Oauth1'];
         $allProperties = [$this->apiParameters, $nativeProperties];
 
         foreach ($allProperties as $properties) {

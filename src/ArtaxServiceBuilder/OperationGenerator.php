@@ -1,7 +1,7 @@
 <?php
 
 
-namespace ArtaxApiBuilder;
+namespace ArtaxServiceBuilder;
 
 
 use Danack\Code\Generator\ClassGenerator;
@@ -45,7 +45,7 @@ class OperationGenerator {
         $className,
         OperationDefinition $operation,
         $outputPath,
-        \ArtaxApiBuilder\APIGenerator $api
+        \ArtaxServiceBuilder\APIGenerator $api
     ) {
         $this->namespace = $namespace;
         $this->className = $className;
@@ -260,7 +260,7 @@ END;
         }
 
         if ($hasURIVariables) {
-            $body .= '$uriTemplate = new \ArtaxApiBuilder\Service\UriTemplate\UriTemplate();'.PHP_EOL;
+            $body .= '$uriTemplate = new \ArtaxServiceBuilder\Service\UriTemplate\UriTemplate();'.PHP_EOL;
             $body .= '$url = $uriTemplate->expand($url, $this->parameters);'.PHP_EOL;
         }
 
@@ -605,7 +605,7 @@ END;
     
     
     /**
-     * @throws \ArtaxApiBuilder\APIBuilderException
+     * @throws \ArtaxServiceBuilder\APIBuilderException
      */
     function generate() {
 
@@ -628,7 +628,7 @@ END;
         $this->addExecuteMethod();
         $this->addDispatchMethod();
 
-        $this->classGenerator->setImplementedInterfaces(['ArtaxApiBuilder\Operation']);
+        $this->classGenerator->setImplementedInterfaces(['ArtaxServiceBuilder\Operation']);
         $this->classGenerator->setFQCN($fqcn);
         $text = $this->classGenerator->generate();
         saveFile($this->outputPath, $fqcn, $text);

@@ -1,7 +1,7 @@
 <?php
 
 
-namespace ArtaxApiBuilder;
+namespace ArtaxServiceBuilder;
 
 
 class Parameter {
@@ -39,7 +39,6 @@ class Parameter {
         $this->scopes = $scopes;
     }
     
-
     /**
      * @return string
      */

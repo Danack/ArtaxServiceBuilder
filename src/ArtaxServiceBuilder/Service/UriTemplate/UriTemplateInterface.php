@@ -1,6 +1,6 @@
 <?php
 
-namespace ArtaxApiBuilder\Service\UriTemplate;
+namespace ArtaxServiceBuilder\Service\UriTemplate;
 
 //Copyright Guzzle project
 

@@ -1,11 +1,11 @@
 <?php
 
 
-namespace ArtaxApiBuilder\Service;
+namespace ArtaxServiceBuilder\Service;
 
 use Artax\Request;
 
-class FlickrOauth1 extends \ArtaxApiBuilder\Service\Oauth1 {
+class FlickrOauth1 extends \ArtaxServiceBuilder\Service\Oauth1 {
     /**
      * Decide whether the post fields should be added to the Oauth BaseString.
      * Flickr incorrectly add the post fields when the content type is 'multipart/form-data'. They should only be added when the content type is 'application/x-www-form-urlencoded'

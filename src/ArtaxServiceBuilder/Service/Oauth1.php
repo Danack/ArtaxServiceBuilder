@@ -1,11 +1,11 @@
 <?php
 
-namespace ArtaxApiBuilder\Service;
+namespace ArtaxServiceBuilder\Service;
 
 //Originally from https://github.com/guzzle/oauth-subscriber
 
 use Artax\Request;
-use ArtaxApiBuilder\ArtaxServiceException;
+use ArtaxServiceBuilder\ArtaxServiceException;
 
 
 /**

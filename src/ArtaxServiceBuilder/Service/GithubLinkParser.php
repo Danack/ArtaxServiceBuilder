@@ -1,11 +1,11 @@
 <?php
 
 
-namespace ArtaxApiBuilder\Service;
+namespace ArtaxServiceBuilder\Service;
 
 use Artax\Response;
-//use ArtaxApiBuilder\Service\HTTP2\HTTP2;
-use ArtaxApiBuilder\Service\Link;
+//use ArtaxServiceBuilder\Service\HTTP2\HTTP2;
+use ArtaxServiceBuilder\Service\Link;
 
 /**
  * Class GithubLinkParser
@@ -14,7 +14,7 @@ use ArtaxApiBuilder\Service\Link;
  * as a generic RFC 5988 parser, but it has a specific name for now until I can check 
  * other APIs that use RFC 5988.
  * 
- * @package ArtaxApiBuilder\Service
+ * @package ArtaxServiceBuilder\Service
  */
 class GithubLinkParser {
 
@@ -47,7 +47,7 @@ class GithubLinkParser {
      * Extract the link header(s) as parse the RFC 5988 style links from them.
      * fyi RFC 5988 is a terrible idea. It means to cache a response, you now need to
      * cache both the body data return as well as the headers.
-     * @return \ArtaxApiBuilder\Service\Link[]
+     * @return \ArtaxServiceBuilder\Service\Link[]
      */
     public function parseResponse() {
         $linkHeaders = $this->response->getHeader('Link');

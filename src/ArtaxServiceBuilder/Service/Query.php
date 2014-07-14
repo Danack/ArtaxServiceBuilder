@@ -1,6 +1,6 @@
 <?php
 
-namespace ArtaxApiBuilder\Service;
+namespace ArtaxServiceBuilder\Service;
 
 /**
  * Manages query string variables and can aggregate them into a string

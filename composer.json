@@ -12,10 +12,6 @@
         {
             "type": "vcs",
             "url": "https://github.com/rdlowrey/Artax"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/Danack/Auryn"
         }
     ],
 
