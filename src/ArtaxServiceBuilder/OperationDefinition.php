@@ -195,6 +195,10 @@ class OperationDefinition {
                     $parameter->setLocation($parameterDescription['location']);
                 }
 
+                if (isset($parameterDescription['filters'])) {
+                    $parameter->setFilters($parameterDescription['filters']);
+                }
+
                 if (isset($parameterDescription['optional'])) {
                     $parameter->setOptional(true);
                 }

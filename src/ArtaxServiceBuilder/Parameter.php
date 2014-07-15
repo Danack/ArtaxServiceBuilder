@@ -19,6 +19,9 @@ class Parameter {
     private $permissions;
     private $scopes;
     
+    private $filters = [];
+    
+    
     function __construct($name) {
         $this->name = $name;
         $this->sentAs = $name;
@@ -56,6 +59,28 @@ class Parameter {
         $this->location = $location;
     }
 
+    /**
+     * @param $filters
+     * 
+     * 
+     *  "filters": [
+            "strtolower",
+            {
+                "method": "MyClass::convertString",
+                "args": [ "test", "@value", "@api" ]
+            }
+        ]
+     * 
+     */
+    public function setFilters($filters) {
+        $this->filters = $filters;
+    }
+    
+    public function getFilters() {
+        return $this->filters;
+    }
+    
+    
     /**
      * @param $isAPIParameter
      */

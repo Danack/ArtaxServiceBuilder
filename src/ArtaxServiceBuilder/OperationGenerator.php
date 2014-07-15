@@ -282,7 +282,7 @@ END;
                     'if (array_key_exists(\'%s\', $this->parameters) == true) {'.PHP_EOL,
                     $operationParameter->getName()
                 );
-                $indent = '   '; //$t for tab
+                $indent = '   ';
             }
             else {
                 $indent = '';
@@ -299,7 +299,7 @@ END;
 
                 case 'postField': {
                     $body .= sprintf(
-                        $indent.'$formBody->addField(\'%s\', $this->parameters[\'%s\']);'.PHP_EOL,
+                        $indent.'$formBody->addField(\'%s\', $this->getFilteredParameter(\'%s\'));'.PHP_EOL,
                         $operationParameter->getName(),
                         $operationParameter->getName()
                     );
@@ -308,7 +308,7 @@ END;
 
                 case 'postFile': {
                     $body .= sprintf(
-                        $indent.'$formBody->addFileField(\'%s\', $this->parameters[\'%s\']);'.PHP_EOL,
+                        $indent.'$formBody->addFileField(\'%s\', $this->getFilteredParameter(\'%s\'));'.PHP_EOL,
                         $operationParameter->getName(),
                         $operationParameter->getName()
                     );
@@ -317,7 +317,7 @@ END;
 
                 case 'json': {
                     $body .= sprintf(
-                        $indent.'$jsonParams[\'%s\'] = $this->parameters[\'%s\'];'.PHP_EOL,
+                        $indent.'$jsonParams[\'%s\'] = $this->getFilteredParameter(\'%s\');'.PHP_EOL,
                         $operationParameter->getName(),
                         $operationParameter->getName()
                     );
@@ -326,7 +326,7 @@ END;
 
                 case ('header'): {
                     $body .= sprintf(
-                        $indent.'$request->setHeader(\'%s\', $this->parameters[\'%s\']);'.PHP_EOL,
+                        $indent.'$request->setHeader(\'%s\', $this->getFilteredParameter(\'%s\'));'.PHP_EOL,
                         $operationParameter->getSentAs(),
                         $operationParameter->getName()
                     );
@@ -336,7 +336,7 @@ END;
                 default:
                 case 'query': {
                     $body .= sprintf(
-                        $indent.'$queryParameters[\'%s\'] = $this->parameters[\'%s\'];'.PHP_EOL,
+                        $indent.'$queryParameters[\'%s\'] = $this->getFilteredParameter(\'%s\');'.PHP_EOL,
                         $operationParameter->getName(),
                         $operationParameter->getName()
                     );
@@ -417,7 +417,7 @@ END;
             $body .= '$this->setParams($defaultParams);'.PHP_EOL;
         }
 
-        $apiParameters = $this->apiGenerator->getAPIParameters();
+        //$apiParameters = $this->apiGenerator->getAPIParameters();
 
         $constructorParams = [];
         
@@ -426,26 +426,13 @@ END;
         $body .= '$this->api = $api;'.PHP_EOL;
 
         foreach ($requiredParameters as $param) {
-//            if (array_key_exists($param->getName(), $apiParameters) == true) {
-//                $translatedParam = $this->apiGenerator->translateParameter($param->getName());
-//
-//                $body .= sprintf(
-//                    "\$this->parameters['%s'] = \$api->get%s();".PHP_EOL,
-//                    //TODO - make this a function...somewhere
-//                    $translatedParam,
-//                    ucfirst($translatedParam)
-//                );
-//            }
-//            else {
-                $constructorParams[] = $param->getName();
+            $constructorParams[] = $param->getName();
 
-                $body .= sprintf(
-                    "\$this->parameters['%s'] = $%s;".PHP_EOL,
-                    $param->getName(),
-                    $param->getName()
-                );
-                
-            //}
+            $body .= sprintf(
+                "\$this->parameters['%s'] = $%s;".PHP_EOL,
+                $param->getName(),
+                $param->getName()
+            );
         }
 
         
@@ -561,6 +548,111 @@ END;
     }
 
 
+    function generateParamFilterBlock(\ArtaxServiceBuilder\Parameter $parameter) {
+
+        $i1 = '    ';//Indent 1
+        $i2 = '        ';//Indent 1
+        
+        
+        $text = '';
+
+        $text .= sprintf(
+            $i1."case ('%s'): {".PHP_EOL,
+            $parameter->getName()
+        );
+        
+        foreach ($parameter->getFilters() as $filter) {
+
+            if (is_array($filter)) {
+                $text .= $i2.'$args = [];'.PHP_EOL;
+
+                if (is_array($filter['args']) == false) {
+                    throw new \ArtaxServiceBuilder\APIBuilderException("Filter args should be an array instead received ".var_export($filter['args'], true));
+                }
+                
+                // Convert complex filters that hold value place holders
+                foreach ($filter['args'] as $data) {
+                    if ($data == '@value') {
+                        $text .= $i2.'$args[] = $value;'.PHP_EOL;
+                    }
+                    elseif ($data == '@api') {
+                        $data = $this;
+                        $text .= $i2."\$args[] = \$this->\$api;".PHP_EOL;
+                    }
+                    else {
+                        //It should be a string
+                        $text .= $i2."\$args[] = $data;".PHP_EOL;
+                    }
+                }
+
+                $text .= sprintf(
+                    //TODO - we can do better than call_user_func_array
+                    $i2.'$value = call_user_func_array(\'%s\', $args);'.PHP_EOL,
+                    $filter['method']
+                );
+            }
+            else {
+                //TODO - get rid of call_user_func
+                $text .= sprintf(
+                    $i2.'call_user_func(\'%s\', $value);'.PHP_EOL,
+                    $filter
+                );
+            }
+        }
+
+        $text .= $i1.'    break;'.PHP_EOL;
+        $text .= $i1.'}'.PHP_EOL;
+
+        return $text;
+    }
+    
+
+    function addFilteredParameterMethod() {
+        $methodGenerator = new MethodGenerator('getFilteredParameter');
+        $body = 'if (array_key_exists($name, $this->parameters) == false) {'.PHP_EOL;
+        //TODO - make this be the correct type
+        $body .= '    throw new \Exception(\'Parameter \'.$name.\' does not exist.\');'.PHP_EOL;
+        $body .= '}'.PHP_EOL;
+        $body .= ''.PHP_EOL;
+        $body .= '$value = $this->parameters[$name];'.PHP_EOL;
+        $body .= ''.PHP_EOL;
+        
+        $paramFilterBlocks = [];
+
+        foreach ($this->operationDefinition->getParameters() as $parameter) {
+            $parameterFilters = $parameter->getFilters();
+            
+            if (count($parameterFilters)) {
+                //Only generate the filter block if a filter actually need to be applied
+                $paramFilterBlocks[] = $this->generateParamFilterBlock($parameter);
+            }
+        }
+        
+        if (count($paramFilterBlocks)) {
+            $body .= 'switch ($name) {'.PHP_EOL;
+            $body .= ''.PHP_EOL;
+            foreach ($paramFilterBlocks as $paramFilterBlock) {
+                $body .= $paramFilterBlock.PHP_EOL;
+                $body .= ''.PHP_EOL;
+            }
+            $body .= '    default:{}'.PHP_EOL;
+            $body .= ''.PHP_EOL;
+            $body .= '}'.PHP_EOL;
+        }
+
+        $body .= ''.PHP_EOL;
+        $body .= 'return $value;'.PHP_EOL;
+        
+        $methodGenerator->setBody($body);
+        $docBlock = $this->generateExecuteDocBlock('Apply any filters necessary to the parameter');
+        $methodGenerator->setParameter('name');
+        
+        $methodGenerator->setDocBlock($docBlock);
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+
+    }
+    
+    
     /**
      * 
      */
@@ -623,6 +715,7 @@ END;
         $this->addSetParameterMethod();
         $this->addCheckScopeMethod();
         $this->addAccessorMethods();
+        $this->addFilteredParameterMethod();
         $this->addOptionalParamMethods();
         $this->addCreateRequestMethod();
         $this->addCreateAndCallMethod();
