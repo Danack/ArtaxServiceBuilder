@@ -42,17 +42,16 @@ And then have all the service code generated and usable like this:
     
     $currentEmails = $emailCommand->execute();
     
-    //$currentEmails is of class \Github\Emails
+    //The execute function has a docblock return type of 
+    //@return \Github\Emails
     foreach ($currentEmails as $email) {
         printf("Address %s verified %s primary %s ",
-            $email->address.
-            $email->verified
+            $email->address,
+            $email->verified,
             $email->primary
         );
     ]
 ```
-    
-    
 
 
 ## Why not Guzzle service
@@ -67,7 +66,7 @@ And then have all the service code generated and usable like this:
 
 * Smaller memory requirement (and memory is PHP's Achilles heel) for using the generated service.
 
-* Type-hinting all the things for great Justice.
+* Type-hinting all the things for Great Justice. 
 
 * Better exposure of underlying mechanisms. Although Guzzle is nice doing everything for you, having direct access to the request and/or responses is a pretty powerful technique for when people fuck up their API, and you need to hack around their stupidity (Github, I'm looking at you).
 
@@ -84,6 +83,9 @@ And then have all the service code generated and usable like this:
 
 * apiVersion - yep. Need some api versioning.
 
+* Need to read rate limiting headers and make that information available through the api class.
+
+* caching of responses + storing/using etags/last modified etc to avoid hitting rate limits early.
 
 ## Not implemented
 
