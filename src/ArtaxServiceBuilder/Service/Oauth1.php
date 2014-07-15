@@ -296,8 +296,6 @@ class Oauth1
 
     private function sign_RSA_SHA1($baseString)
     {
-      
-        
         if (!function_exists('openssl_pkey_get_private')) {
             throw new \RuntimeException('RSA-SHA1 signature method '
                 . 'requires the OpenSSL extension.');
@@ -359,9 +357,8 @@ class Oauth1
         ];
 
         if (isset($this->oauth_token)) {
-            $params['oauth_token'] = $this->oauth_token;//"72157645608249751-2869f789da42d2f2";
+            $params['oauth_token'] = $this->oauth_token;
         }
-        
 
         $params = $this->oauthConfig->toArray($params);
 

@@ -22,11 +22,6 @@ class OauthConfig {
 //'version'   => 'oauth_version'
 //];
 
-
-    //'token'     => 'oauth_token',
-    //$token_secret
-    //$realm
-
     function __construct(
         $consumerKey,
         $consumerSecret,
