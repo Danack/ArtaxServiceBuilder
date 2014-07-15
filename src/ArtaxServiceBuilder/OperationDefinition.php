@@ -207,6 +207,10 @@ class OperationDefinition {
                     $parameter->setDescription($parameterDescription['description']);
                 }
 
+                if (isset($parameterDescription['sentAs'])) {
+                    $parameter->setSentAs($parameterDescription['sentAs']);
+                }
+
                 if (in_array($paramName, $api->getAPIParameters())) {
                     $parameter->setIsAPIParameter(true);
                 }

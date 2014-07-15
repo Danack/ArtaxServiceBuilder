@@ -327,7 +327,7 @@ END;
                 case ('header'): {
                     $body .= sprintf(
                         $indent.'$request->setHeader(\'%s\', $this->parameters[\'%s\']);'.PHP_EOL,
-                        $operationParameter->getName(),
+                        $operationParameter->getSentAs(),
                         $operationParameter->getName()
                     );
                     break;
@@ -420,22 +420,23 @@ END;
         $apiParameters = $this->apiGenerator->getAPIParameters();
 
         $constructorParams = [];
-        $constructorParams[] = new ParameterGenerator('api', 'AABTest\GithubAPI\GithubAPI');
+        
+        $constructorParams[] = new ParameterGenerator('api', $this->apiGenerator->getFQCN());
         
         $body .= '$this->api = $api;'.PHP_EOL;
 
         foreach ($requiredParameters as $param) {
-            if (array_key_exists($param->getName(), $apiParameters) == true) {
-                $translatedParam = $this->apiGenerator->translateParameter($param->getName());
-
-                $body .= sprintf(
-                    "\$this->parameters['%s'] = \$api->get%s();".PHP_EOL,
-                    //TODO - make this a function...somewhere
-                    ucfirst($translatedParam),
-                    $translatedParam
-                );
-            }
-            else {
+//            if (array_key_exists($param->getName(), $apiParameters) == true) {
+//                $translatedParam = $this->apiGenerator->translateParameter($param->getName());
+//
+//                $body .= sprintf(
+//                    "\$this->parameters['%s'] = \$api->get%s();".PHP_EOL,
+//                    //TODO - make this a function...somewhere
+//                    $translatedParam,
+//                    ucfirst($translatedParam)
+//                );
+//            }
+//            else {
                 $constructorParams[] = $param->getName();
 
                 $body .= sprintf(
@@ -444,7 +445,7 @@ END;
                     $param->getName()
                 );
                 
-            }
+            //}
         }
 
         

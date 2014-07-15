@@ -154,7 +154,10 @@ class APIGenerator {
     function setAuthErrorAsException($authErrorAsException) {
         $this->authErrorAsException = $authErrorAsException;
     }
-    
+
+    function getFQCN() {
+        return $this->fqcn;
+    }
 
     /**
      * Get the list of parameters (by name) that should only exist at an API level, rather

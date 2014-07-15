@@ -14,11 +14,14 @@ class Parameter {
     private $description;
     private $location;
     
+    private $sentAs;
+    
     private $permissions;
     private $scopes;
     
     function __construct($name) {
         $this->name = $name;
+        $this->sentAs = $name;
         $this->isAPIParameter = false;
     }
 
@@ -87,6 +90,14 @@ class Parameter {
      */
     public function getName() {
         return $this->name;
+    }
+    
+    public function getSentAs() {
+        return $this->sentAs;
+    }
+    
+    public function setSentAs($value) {
+        $this->sentAs = $value;
     }
 
     /**
