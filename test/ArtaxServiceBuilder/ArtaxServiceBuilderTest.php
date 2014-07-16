@@ -1,21 +1,23 @@
 <?php
 
 
-namespace ArtaxApiBuilder;
+namespace ArtaxServiceBuilder;
 
+
+use ArtaxServiceBuilder\APIGenerator;
 
 /**
  * @group service
  */
 
-class ArtaxServiceBuilderTest extends \ArtaxApiBuilder\TestBase {
+class ArtaxServiceBuilderTest extends TestBase {
 
 
     function testFlickrPeopleGetPublicPhotos() {
 
         $outputDirectory = __DIR__.'/../../var/src';
         
-        $apiGenerator = new \ArtaxApiBuilder\APIGenerator(
+        $apiGenerator = new APIGenerator(
             $outputDirectory,
             []
         );
@@ -40,10 +42,6 @@ class ArtaxServiceBuilderTest extends \ArtaxApiBuilder\TestBase {
             'https://example.com/overrideURL',
             $overrideOperation->getURL()
         );
-            
-            
-        
-
     }
     
     

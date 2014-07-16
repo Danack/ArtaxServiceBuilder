@@ -1,6 +1,6 @@
 <?php
 
-namespace ArtaxApiBuilder;
+namespace ArtaxServiceBuilder;
 
 
 /**
