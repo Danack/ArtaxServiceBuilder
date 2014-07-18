@@ -227,6 +227,13 @@ class APIGenerator {
 
             $body = '';
             $params = [];
+
+            //Every API needs the Artax\Client object to send requests
+            $param = new ParameterGenerator('client', 'Artax\Client', null);
+            $params[] = $param;
+            $body .= '$this->client = $client;'.PHP_EOL;
+
+            //Add the params
             foreach ($this->constructorParams as $constructorParam) {
                 $param = new ParameterGenerator($constructorParam);
                 $params[] = $param;
@@ -234,6 +241,7 @@ class APIGenerator {
                 $body .= PHP_EOL;
             }
 
+            //Add an oauth signing service if the API needs one
             if ($this->requiresOauth1 == true) {
                 $param = new ParameterGenerator('oauthService', 'ArtaxServiceBuilder\Service\Oauth1', null);
                 $param->setDefaultValue(null);
@@ -266,6 +274,10 @@ class APIGenerator {
      * 
      */
     function addSignMethod() {
+        if ($this->requiresOauth1 !== true) {
+            return;
+        }
+
         $methodGenerator = new MethodGenerator('signRequest');
         $requestParam = new ParameterGenerator('request', 'Artax\Request');
         $methodGenerator->setParameters([$requestParam]);
@@ -317,19 +329,11 @@ END;
      */
     function getCallBody() {
 
-//        $request = new \Artax\Request();
-//        $fullURL = $url.'?'.http_build_query($parameters, '', '&', PHP_QUERY_RFC3986);
-//        $request->setUri($fullURL);
-
-        
-        
         $body = <<< 'END'
 
-$client = new \Artax\Client();
+//$client->setOption('transfertimeout', 25);
 
-$client->setOption('transfertimeout', 25);
-
-$response = $client->request($request);
+$response = $this->client->request($request);
 $status = $response->getStatus();
 $status = intval($status);
 
@@ -779,16 +783,19 @@ END;
      */
     private function addProperties() {
         $this->apiParameters;
-        $nativeProperties = ['oauthService' => 'ArtaxServiceBuilder\Service\Oauth1'];
+        $nativeProperties = [
+            'client' => 'Artax\Client'
+        ];
+
+        if ($this->requiresOauth1 == true) {
+            $nativeProperties['oauthService'] = 'ArtaxServiceBuilder\Service\Oauth1';
+        }
+
         $allProperties = [$this->apiParameters, $nativeProperties];
 
         foreach ($allProperties as $properties) {
             foreach ($properties as $property => $type) {
                 $propGenerator = new PropertyGenerator($property);
-                
-//                $docBlockGenerator = new DocBlockGenerator();
-//                $docBlockGenerator->setTag(new GenericTag())
-
                 $propGenerator->setStandardDocBlock($type);
                 $this->generator->addPropertyFromGenerator($propGenerator);
             }
@@ -801,7 +808,10 @@ END;
     function generate() {        
         $this->sanityCheck();
         $this->addProperties();
+        
         $this->addSignMethod();
+        
+        
         $this->addCallMethod();
         $this->generateMethods();
         $this->addAPIParameterAccessMethod();
