@@ -19,6 +19,7 @@ class GithubPaginator {
 
     public $earliestPage = null;
     public $furthestPage = null;
+    public $nextPage = null;
 
     public $urlStub = null;
 
@@ -76,7 +77,18 @@ class GithubPaginator {
 
         $this->makeDramaticAssumptionsAboutLinks($this->links);
     }
-    
+
+    /**
+     * @return Link[]
+     */
+    public function getLinks() {
+        return $this->links;
+    }
+
+    /**
+     * @param $page
+     * @return string
+     */
     public function getURLForPage($page) {
         $page = intval($page);
         return $this->urlStub.$page;
@@ -92,15 +104,65 @@ class GithubPaginator {
 
         return [];
     }
+
+    /**
+     * Returns an iterator of the remaining pages if both
+     * $nextPage and $furthestPage are set, otherwise returns false
+     */
+    function getRemainingPages() {
+        if ($this->nextPage !== null && 
+            $this->furthestPage !== null) {
+            return $this->getPages($this->nextPage, $this->furthestPage, $this->urlStub);
+        }
+
+        return false;
+    }
+
+    /**
+     * 
+     * 
+     * 
+     * @return array|bool An array of URI strings on success or false on failure.
+     */
+    function getAllKnownPages() {
+        if ($this->earliestPage !== null && 
+            $this->furthestPage !== null) {
+            return $this->getPages($this->earliestPage, $this->furthestPage, $this->urlStub);
+        }
+
+        return false;
+    }
     
+
+    /**
+     * Generates an array of the URIs for a set of pages.
+     * @param $startPage
+     * @param $endPage
+     * @param $urlStub
+     * @return array
+     */
+    public function getPages($startPage, $endPage, $urlStub) {
+        $pages = [];
+        //TODO yield this array - after upgrading to php 5.5
+        for($x=$startPage ; $x<=$endPage ; $x++) {
+            $pages[] = $urlStub.$x;
+        }
+
+        return $pages;
+    }
+
+
     /**
      * @param Response $response
+     * @return GithubPaginator|null
      */
     public static function constructFromResponse(Response $response) {
-        $linkHeaders = [];
-        if ($response->hasHeader('Link') == true) {
-            $linkHeaders = $response->getHeader('Link');
+        //TODO - make this not nullable
+        if ($response->hasHeader('Link') == false) {
+            return null;
         }
+
+        $linkHeaders = $response->getHeader('Link');
         $instance = new self($linkHeaders);
      
         return $instance;
@@ -165,6 +227,8 @@ class GithubPaginator {
 
         $furthestKnownLink = null;
         $furthestType = null;
+        
+        $nextLink = null;
 
         if (isset($links[self::FIRST]) == true) {
             $earliestKnownLink = $links[self::FIRST];
@@ -186,6 +250,7 @@ class GithubPaginator {
         else if (isset($links[self::NEXT]) == true) {
             $furthestKnownLink = $links[self::NEXT];
             $furthestType = self::NEXT;
+            $nextLink = $links[self::NEXT];
         }
         else if (isset($links[self::PREVIOUS]) == true) {
             $furthestKnownLink = $links[self::PREVIOUS];
@@ -214,6 +279,14 @@ class GithubPaginator {
                 $this->furthestPage = intval($matches[2]);
             }
         }
+
+        if  ($nextLink) {
+            if (preg_match('/(.*page=)(\d+)$/', $nextLink->url, $matches)) {
+                $urlStub2 = $matches[1];
+                $this->nextPage = intval($matches[2]);
+            }
+        }
+
 
         if ($urlStub1 && $urlStub2) {
             //TODO - what do we do when they don't match?
