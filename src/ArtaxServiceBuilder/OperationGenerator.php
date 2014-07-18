@@ -221,7 +221,7 @@ END;
                     //if they are actually sent in the query.
                     $body .= sprintf(
                             "\$queryParameters['%s'] = \$this->api->get%s();",
-                            $apiParameter,
+                            ucfirst($apiParameter),
                             $translatedParam
                         ).PHP_EOL;
                     $hasQueryParams = true;
@@ -417,12 +417,8 @@ END;
             $body .= '$this->setParams($defaultParams);'.PHP_EOL;
         }
 
-        //$apiParameters = $this->apiGenerator->getAPIParameters();
-
         $constructorParams = [];
-        
         $constructorParams[] = new ParameterGenerator('api', $this->apiGenerator->getFQCN());
-        
         $body .= '$this->api = $api;'.PHP_EOL;
 
         foreach ($requiredParameters as $param) {
@@ -434,19 +430,7 @@ END;
                 $param->getName()
             );
         }
-
         
-        /*
-        foreach ($requiredParameters as $param) {
-            if (array_key_exists($param->getName(), $apiParameters)) {
-            //if (in_array($param->getName(), $apiParameters) == true) {
-                if (in_array($param->getName(), $constructorParams) == false) { //TODO - how could this be possible?
-                    $constructorParams[] = $param->getName();
-                }
-            }
-        } 
-        */
-
         $methodGenerator->setParameters($constructorParams);
         $methodGenerator->setBody($body);
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
@@ -484,7 +468,7 @@ END;
         $responseCallable = $this->operationDefinition->getResponseCallable();
 
         if ($responseCallable) {
-            //HMMM
+            //TODO -support this
             exit(0);
         }
         else if ($responseFactory) {
@@ -694,6 +678,24 @@ END;
         $methodGenerator->setParameter($parameter);
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
+
+
+    function addProcessResponseMethod() {
+
+        $methodGenerator = new MethodGenerator('processResponse');
+
+        $body = '';
+        $body .= $this->generateResponseFragment();
+
+        $docBlock = $this->generateExecuteDocBlock('Dispatch the request for this operation and process the response.Allows you to modify the request before it is sent.');
+
+        $methodGenerator->setDocBlock($docBlock);
+        $methodGenerator->setBody($body);
+
+        $parameter = new ParameterGenerator('response', 'Artax\Response');
+        $methodGenerator->setParameter($parameter);
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
     
     
     
@@ -721,6 +723,9 @@ END;
         $this->addCreateAndCallMethod();
         $this->addExecuteMethod();
         $this->addDispatchMethod();
+        $this->addProcessResponseMethod();
+        
+        
 
         $this->classGenerator->setImplementedInterfaces(['ArtaxServiceBuilder\Operation']);
         $this->classGenerator->setFQCN($fqcn);

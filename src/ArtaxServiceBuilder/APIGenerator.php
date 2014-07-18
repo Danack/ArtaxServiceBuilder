@@ -104,7 +104,12 @@ class APIGenerator {
     private $interfaces = [];
     
     private $interfaceName;
-    
+
+    /**
+     * @var bool Whether the API requires Oauth1 signing service.
+     * Defaults to false.
+     */
+    private $requiresOauth1 = false;
 
     private $includeMethods = [];
 
@@ -140,6 +145,10 @@ class APIGenerator {
         $this->outputPath = $outputPath;
     }
 
+    function setRequiresOauth1($requiresOauth1) {
+        $this->requiresOauth1 = $requiresOauth1;
+    }
+    
 
     /**
      * Whether to throw AuthException when an authorization error occurs.
@@ -225,17 +234,14 @@ class APIGenerator {
                 $body .= PHP_EOL;
             }
 
+            if ($this->requiresOauth1 == true) {
+                $param = new ParameterGenerator('oauthService', 'ArtaxServiceBuilder\Service\Oauth1', null);
+                $param->setDefaultValue(null);
+                $params[] = $param;
+                $body .= sprintf('$this->%s = $%s;', 'oauthService', 'oauthService');
+                $body .= PHP_EOL;
+            }
 
-            
-            $param = new ParameterGenerator('oauthService', 'ArtaxServiceBuilder\Service\Oauth1', null);
-
-            $param->setDefaultValue(null);
-            $params[] = $param;
-
-            $body .= sprintf('$this->%s = $%s;', 'oauthService', 'oauthService');
-            $body .= PHP_EOL;
-            
-            
             $methodGenerator->setBody($body);
             $methodGenerator->setParameters($params);
             $this->generator->addMethodFromGenerator($methodGenerator);
@@ -390,7 +396,7 @@ END;
 //                    echo $requiredParam->getName();
                     $requiredParamsStringsWithDollar[] = sprintf(
                         '$this->get%s()',
-                        $requiredParam->getName()
+                        ucfirst($requiredParam->getName())
                     );
                 }
                 else {
