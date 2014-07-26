@@ -88,8 +88,12 @@ class APIGenerator {
     private $apiParameters = [];
     
     private $delimiter = '#';
-    
 
+    private $operationNamespace;
+
+
+    private $useNames = [];
+    
     /**
      * Fully qualified classname - aka namespace + classname
      * @var
@@ -218,6 +222,10 @@ class APIGenerator {
         $this->namespace = \ArtaxServiceBuilder\getNamespace($this->fqcn);
     }
 
+    function setOperationNamespace($operationNamespace) {
+        $this->operationNamespace = $operationNamespace;
+    }
+    
     /**
      * 
      */
@@ -266,9 +274,69 @@ class APIGenerator {
         $successStatusParam = new ParameterGenerator('successStatuses', 'array', []);
         $methodGenerator->setParameters([$requestParam, $successStatusParam]);
         $methodGenerator->setBody($this->getCallBody());
+
+        $tags = [];
+        $tags[] = new GenericTag(
+            'param',
+            '$request \Artax\Request The request to send.'
+        );
+        $tags[] = new GenericTag(
+            'param',
+            '$successStatuses array A list of acceptable success statuses.'
+        );
+        $tags[] = new GenericTag(
+            'return',
+            '\Artax\Response  The response from Artax'
+        );
+
+        $docBlockGenerator = new DocBlockGenerator('callAPI');
+        $docBlockGenerator->setLongDescription("Sends a request to the API");
+        $docBlockGenerator->setTags($tags);
+        $methodGenerator->setDocBlock($docBlockGenerator);
+
         $this->generator->addMethodFromGenerator($methodGenerator);
     }
 
+
+    /**
+     *
+     */
+    function addExecAsyncMethod() {
+        $methodGenerator = new MethodGenerator('executeAsync');
+        $operationParam = new ParameterGenerator('operation', 'ArtaxServiceBuilder\Operation');
+        $callableParam = new ParameterGenerator('callback', 'callable');
+
+        $methodGenerator->setParameters([$operationParam, $callableParam]);
+
+        $body = <<< 'END'
+$request = $operation->createRequest();
+$onError = function() {
+    echo "Something is borked.";
+};
+
+$this->client->request($request, $callback, $onError);    
+END;
+
+        $methodGenerator->setBody($body);
+        
+        $tags = [];
+        $tags[] = new GenericTag(
+            'param',
+            '\ArtaxServiceBuilder\Operation $operation The operation to perform'
+        );
+        $tags[] = new GenericTag(
+            'param',
+            'callable $callback The callback to call on completion/response. Parameters should be blah blah blah'
+        );
+
+        $docBlockGenerator = new DocBlockGenerator('executeAsync');
+        $docBlockGenerator->setLongDescription("Execute an operation asynchronously.");
+        $docBlockGenerator->setTags($tags);
+        $methodGenerator->setDocBlock($docBlockGenerator);
+        $this->generator->addMethodFromGenerator($methodGenerator);
+        $this->interfaceGenerator->addMethodFromGenerator($methodGenerator);
+        
+    }
 
     /**
      * 
@@ -310,9 +378,6 @@ class APIGenerator {
 
         $body = <<< 'END'
 
-$client = new \Artax\Client();
-
-$client->setOption('transfertimeout', 25);
 $request = new \Artax\Request();
 $fullURL = $url.'?'.http_build_query($parameters, '', '&', PHP_QUERY_RFC3986);
 $request->setUri($fullURL);
@@ -330,8 +395,6 @@ END;
     function getCallBody() {
 
         $body = <<< 'END'
-
-//$client->setOption('transfertimeout', 25);
 
 $response = $this->client->request($request);
 $status = $response->getStatus();
@@ -375,73 +438,65 @@ END;
     /**
      * Add the methods that return the operations in the API.
      */
-    function addOperationGetters() {
-        foreach ($this->operations as $methodName => $operation) {
+    function addOperationGetter(
+        $methodName,
+        OperationDefinition $operation,
+        OperationGenerator $operationGenerator
+    ) {
+        $operationName = $this->normalizeMethodName($methodName);
+        $operationClassName = $this->normalizeClassName($methodName);
+        $methodGenerator = new MethodGenerator($operationName);
 
-            $operationName = $this->normalizeMethodName($methodName);
-            $operationClassName = $this->normalizeClassName($methodName);
-            $methodGenerator = new MethodGenerator($operationName);
+        $apiParameters = $this->getAPIParameters();
 
-            $apiParameters = $this->getAPIParameters();
+        $body = '';
 
-            $body = '';
+        //All required parameters must be passed in when the operation is created.
+        $requiredParameters = $operation->getRequiredParams();
+        
+        $paramsStrings = [];
+        $requiredParamsStringsWithDollar = [];
+        $tags = [];
 
-                //All required parameters must be passed in when the operation is created.
-            $requiredParameters = $operation->getRequiredParams();
-            
-            $paramsStrings = [];
-            $requiredParamsStringsWithDollar = [];
-            $tags = [];
-
-            $requiredParamsStringsWithDollar[] = '$this';
-            
-            foreach($requiredParameters as $requiredParam) {
-                if (array_key_exists($requiredParam->getName(), $apiParameters) == true) {
-//                    echo $requiredParam->getName();
-                    $requiredParamsStringsWithDollar[] = sprintf(
-                        '$this->get%s()',
-                        ucfirst($requiredParam->getName())
-                    );
-                }
-                else {
-                    $paramsStrings[] = $requiredParam->getName();
-                    $tags[] = new GenericTag(
-                        'param', 
-                        ''.$requiredParam->getName().' mixed '.$requiredParam->getDescription()
-                    );
-                    //TODO - replace with array_map on $paramsStrings
-                    $requiredParamsStringsWithDollar[] = '$'.$requiredParam->getName();
-                }
+        $requiredParamsStringsWithDollar[] = '$this';
+        
+        foreach($requiredParameters as $requiredParam) {
+            if (array_key_exists($requiredParam->getName(), $apiParameters) == true) {
+                $requiredParamsStringsWithDollar[] = sprintf(
+                    '$this->get%s()',
+                    ucfirst($requiredParam->getName())
+                );
             }
-
-            $paramString = implode(', ', $requiredParamsStringsWithDollar);
-            $methodGenerator->setParameters($paramsStrings);
-
-            /*
-            foreach ($requiredParameters as $param) {
-                //if (in_array($param->getName(), $apiParameters) == true) {
-                if (in_array($param->getName(), $apiParameters) == false) {
-                    $paramsStrings[] = $param->getName();
-                    
-                }
-               // //TODO - allow type defining to work, rather than just mixed.
+            else {
+                $paramsStrings[] = $requiredParam->getName();
+                $tags[] = new GenericTag(
+                    'param', 
+                    ''.$requiredParam->getName().' mixed '.$requiredParam->getDescription()
+                );
+                //TODO - replace with array_map on $paramsStrings
+                $requiredParamsStringsWithDollar[] = '$'.$requiredParam->getName();
             }
-            */
-
-            $body .= "\$instance = new $operationClassName($paramString);".PHP_EOL;
-            //$body .= "\$instance->setAPI(\$this);".PHP_EOL;
-            $body .= "return \$instance;".PHP_EOL;
-
-            
-            $docBlockGenerator = new DocBlockGenerator($methodName);
-            $docBlockGenerator->setLongDescription($operation->getSummary());
-            $docBlockGenerator->setTags($tags);
-
-            $methodGenerator->setDocBlock($docBlockGenerator);
-            $methodGenerator->setBody($body);
-            $this->generator->addMethodFromGenerator($methodGenerator);
-            $this->interfaceGenerator->addMethodFromGenerator($methodGenerator);
         }
+
+        $paramString = implode(', ', $requiredParamsStringsWithDollar);
+        $methodGenerator->setParameters($paramsStrings);
+    
+        $tags[] = new GenericTag(
+            'return',
+            '\\'.$operationGenerator->getFQCN().' The new operation '
+        );
+
+        $body .= "\$instance = new $operationClassName($paramString);".PHP_EOL;
+        $body .= "return \$instance;".PHP_EOL;
+    
+        $docBlockGenerator = new DocBlockGenerator($methodName);
+        $docBlockGenerator->setLongDescription($operation->getSummary());
+        $docBlockGenerator->setTags($tags);
+
+        $methodGenerator->setDocBlock($docBlockGenerator);
+        $methodGenerator->setBody($body);
+        $this->generator->addMethodFromGenerator($methodGenerator);
+        $this->interfaceGenerator->addMethodFromGenerator($methodGenerator);
     }
 
     /**
@@ -449,7 +504,9 @@ END;
      */
     private function generateMethods() {
         foreach ($this->operations as $methodName => $operation) {
-            $this->generateOperationClass($methodName, $operation);
+            $operationGenerator = $this->generateOperationClass($methodName, $operation);
+
+            $this->addOperationGetter($methodName, $operation, $operationGenerator);
         }
     }
 
@@ -499,7 +556,7 @@ END;
         $className = $this->normalizeClassName($methodName);
         
         $operationGenerator = new OperationGenerator(
-            $this->namespace,
+            $this->operationNamespace,
             $className,
             $operation,
             $this->outputPath,
@@ -507,8 +564,10 @@ END;
         );
 
         $operationGenerator->setAPIClassname($this->fqcn);
-        
         $operationGenerator->generate();
+        $this->addUseStatement($operationGenerator->getFQCN());
+
+        return $operationGenerator;
     }
 
 
@@ -802,20 +861,27 @@ END;
         }
     }
 
+
+    function addUseStatement($fqcn) {
+        if (in_array($fqcn, $this->useNames) == false) {
+            $this->useNames[] = $fqcn;
+        }
+
+        $this->generator->addUse($fqcn);
+    }
+    
     /**
      *
      */
     function generate() {        
         $this->sanityCheck();
         $this->addProperties();
-        
         $this->addSignMethod();
-        
-        
         $this->addCallMethod();
+        $this->addExecAsyncMethod();
         $this->generateMethods();
         $this->addAPIParameterAccessMethod();
-        $this->addOperationGetters();
+//        $this->addOperationGetters();
 
         if (count($this->interfaces)) {
             $this->generator->setImplementedInterfaces($this->interfaces);

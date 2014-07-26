@@ -55,6 +55,9 @@ class OperationGenerator {
         $this->apiGenerator = $api;
     }
 
+    function getFQCN() {
+        return $this->namespace.'\\'.$this->className;
+    }
 
     /**
      * @param $apiFQCN
