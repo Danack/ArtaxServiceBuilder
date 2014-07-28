@@ -190,34 +190,17 @@ class OperationDefinition {
 
         if (isset($description["parameters"])) {
             foreach ($description["parameters"] as $paramName => $parameterDescription) {
-                $parameter = new Parameter($paramName);
-                if (isset($parameterDescription['location'])) {
-                    $parameter->setLocation($parameterDescription['location']);
+
+                $isAPIParameter = false;
+                if (array_key_exists($paramName, $api->getAPIParameters())) {
+                    $isAPIParameter = true;
                 }
 
-                if (isset($parameterDescription['filters'])) {
-                    $parameter->setFilters($parameterDescription['filters']);
-                }
-
-                if (isset($parameterDescription['optional'])) {
-                    $parameter->setOptional(true);
-                }
-
-                if (isset($parameterDescription['default'])) {
-                    $parameter->setDefault($parameterDescription['default']);
-                }
-
-                if (isset($parameterDescription['description'])) {
-                    $parameter->setDescription($parameterDescription['description']);
-                }
-
-                if (isset($parameterDescription['sentAs'])) {
-                    $parameter->setSentAs($parameterDescription['sentAs']);
-                }
-
-                if (in_array($paramName, $api->getAPIParameters())) {
-                    $parameter->setIsAPIParameter(true);
-                }
+                $parameter = Parameter::createFromDescription(
+                    $paramName,
+                    $parameterDescription,
+                    $isAPIParameter
+                );
 
                 $this->parameters[] = $parameter;
             }

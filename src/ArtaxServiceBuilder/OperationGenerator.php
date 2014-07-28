@@ -8,9 +8,8 @@ use Danack\Code\Generator\ClassGenerator;
 use Danack\Code\Generator\DocBlockGenerator;
 use Danack\Code\Generator\MethodGenerator;
 use Danack\Code\Generator\ParameterGenerator;
-use Danack\Code\Generator\DocBlock\Tag\GenericTag; 
+use Danack\Code\Generator\DocBlock\Tag\GenericTag;
 use Danack\Code\Generator\PropertyGenerator;
-
 
 class OperationGenerator {
 
@@ -22,7 +21,7 @@ class OperationGenerator {
     private $outputPath;
     private $namespace;
     private $apiClassname;
-    
+
     /**
      * @var \Danack\Code\Generator\ClassGenerator
      */
@@ -65,9 +64,9 @@ class OperationGenerator {
     function setAPIClassname($apiFQCN) {
         $this->apiClassname = $apiFQCN;
     }
-    
+
     /**
-     * 
+     *
      */
     function addProperties() {
         $requiredProperties = [
@@ -83,7 +82,7 @@ class OperationGenerator {
             $propertyGenerator->setDocBlock($docBlock);
             $this->classGenerator->addPropertyFromGenerator($propertyGenerator);
         }
-        
+
         $docBlock = new DocBlockGenerator('Get the last response.');
         $tags[] = new GenericTag('return', '\Artax\Response');
         $docBlock->setTags($tags);
@@ -96,7 +95,7 @@ class OperationGenerator {
     }
 
     /**
-     * 
+     *
      */
     function addSetAPIMethod() {
         $methodGenerator = new MethodGenerator('setAPI');
@@ -107,14 +106,14 @@ class OperationGenerator {
     }
 
     /**
-     * 
+     *
      */
     function addSetParameterMethod() {
         $methodGenerator = new MethodGenerator('setParams');
         $parameterGenerator = new ParameterGenerator('params', 'array');
         $methodGenerator->setParameter($parameterGenerator);
         $body = '';
-        foreach($this->operationDefinition->getParameters() as $parameter) {
+        foreach ($this->operationDefinition->getParameters() as $parameter) {
             $paramName = $parameter->getName();
             $translatedParam = $this->apiGenerator->translateParameter($paramName);
             $setString = <<< END
@@ -130,6 +129,70 @@ END;
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
 
+
+    /**
+     * @param $indent
+     * @param Parameter $operationParameter
+     * @return string
+     */
+    function  generateParameterSetBlock($indent, \ArtaxServiceBuilder\Parameter $operationParameter) {
+
+        switch ($operationParameter->getLocation()) {
+            case 'absoluteURL':
+            {
+                return $indent.'$url = $value;'.PHP_EOL;
+                break;
+            }
+
+            case 'postField':
+            {
+                return sprintf(
+                    $indent.'$formBody->addField(\'%s\', $value);'.PHP_EOL,
+                    $operationParameter->getName()
+                );
+            }
+
+            case 'postFile':
+            {
+                return sprintf(
+                    $indent.'$formBody->addFileField(\'%s\', $value);'.PHP_EOL,
+                    $operationParameter->getName()
+                );
+                break;
+            }
+
+            case 'json':
+            {
+                return sprintf(
+                    $indent.'$jsonParams[\'%s\'] = $value;'.PHP_EOL,
+                    $operationParameter->getName()
+                );
+            }
+
+            case ('header'):
+            {
+                return sprintf(
+                    $indent.'$request->setHeader(\'%s\', $value);'.PHP_EOL,
+                    $operationParameter->getSentAs(),
+                    $operationParameter->getName()
+                );
+            }
+
+            default:
+            case 'query':
+            {
+                return sprintf(
+                    $indent.'$queryParameters[\'%s\'] = $value;'.PHP_EOL,
+                    $operationParameter->getName(),
+                    $operationParameter->getName()
+                );
+            }
+        }
+    }
+
+
+
+ 
 
     /**
      * Adds a method to allow checking of the scope requirement for an operation.
@@ -196,9 +259,6 @@ END;
         $url = $this->operationDefinition->getURL();
         $body .= sprintf('$url = "%s";'.PHP_EOL, addslashes($url));
         $body .= sprintf('$request->setMethod(\'%s\');'.PHP_EOL, $this->operationDefinition->getHttpMethod());
-
-
-
 
         $body .= '$queryParameters = [];'.PHP_EOL;
 
@@ -276,10 +336,9 @@ END;
         }
         
         //TODO - check for multiple body types, either here or better yet in
-        //operation definition.
+        //operation definition. i.e. cannot set json body and multi-part in same request
 
         foreach ($this->operationDefinition->getParameters() as $operationParameter) {
-            
             if ($operationParameter->getIsOptional() == true) {
                 $body .= sprintf(
                     'if (array_key_exists(\'%s\', $this->parameters) == true) {'.PHP_EOL,
@@ -291,60 +350,20 @@ END;
                 $indent = '';
             }
 
-            switch($operationParameter->getLocation()) {
-                case 'absoluteURL': {
-                    $body .= sprintf(
-                        $indent.'$url = $this->parameters[\'%s\'];'.PHP_EOL,
-                        $operationParameter->getName()
-                    );
-                    break;
-                }
+            $body .= sprintf(
+                '$value = $this->getFilteredParameter(\'%s\');'.PHP_EOL,
+                $operationParameter->getName()
+            );
+            $closeSkipBlock = '';
 
-                case 'postField': {
-                    $body .= sprintf(
-                        $indent.'$formBody->addField(\'%s\', $this->getFilteredParameter(\'%s\'));'.PHP_EOL,
-                        $operationParameter->getName(),
-                        $operationParameter->getName()
-                    );
-                    break;
-                }
-
-                case 'postFile': {
-                    $body .= sprintf(
-                        $indent.'$formBody->addFileField(\'%s\', $this->getFilteredParameter(\'%s\'));'.PHP_EOL,
-                        $operationParameter->getName(),
-                        $operationParameter->getName()
-                    );
-                    break;
-                }
-
-                case 'json': {
-                    $body .= sprintf(
-                        $indent.'$jsonParams[\'%s\'] = $this->getFilteredParameter(\'%s\');'.PHP_EOL,
-                        $operationParameter->getName(),
-                        $operationParameter->getName()
-                    );
-                    break;
-                }
-
-                case ('header'): {
-                    $body .= sprintf(
-                        $indent.'$request->setHeader(\'%s\', $this->getFilteredParameter(\'%s\'));'.PHP_EOL,
-                        $operationParameter->getSentAs(),
-                        $operationParameter->getName()
-                    );
-                    break;
-                }
-
-                default:
-                case 'query': {
-                    $body .= sprintf(
-                        $indent.'$queryParameters[\'%s\'] = $this->getFilteredParameter(\'%s\');'.PHP_EOL,
-                        $operationParameter->getName(),
-                        $operationParameter->getName()
-                    );
-                }
+            if ($operationParameter->getSkipIfNull() == true) {
+                $body .= $indent.'if ($value != null) {'.PHP_EOL;
+                $closeSkipBlock = $indent.'}'.PHP_EOL;
+                $indent .= '    ';
             }
+
+            $body .= $this->generateParameterSetBlock($indent, $operationParameter);
+            $body .= $closeSkipBlock;
 
             if ($operationParameter->getIsOptional() == true) {
                 $body .= '}'.PHP_EOL;
@@ -457,9 +476,8 @@ END;
             $body .= '$request = $this->api->signRequest($request);'.PHP_EOL;
         }
 
-        $body .= '$response = $this->api->callAPI($request);'.PHP_EOL;
+        $body .= '$response = $this->api->execute($request);'.PHP_EOL;
         $body .= '$this->response = $response;'.PHP_EOL;
-        
 
         return $body; 
     }
@@ -699,6 +717,9 @@ END;
         $methodGenerator->setParameter($parameter);
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
+
+
+    
     
     
     
@@ -727,6 +748,7 @@ END;
         $this->addExecuteMethod();
         $this->addDispatchMethod();
         $this->addProcessResponseMethod();
+
         
         
 

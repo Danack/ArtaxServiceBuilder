@@ -10,8 +10,12 @@ use Danack\Code\Generator\DocBlockGenerator;
 use Danack\Code\Generator\InterfaceGenerator;
 use Danack\Code\Generator\MethodGenerator;
 use Danack\Code\Generator\ParameterGenerator;
-
+use Danack\Code\Generator\AbstractMemberGenerator;
 use Danack\Code\Generator\DocBlock\Tag\GenericTag;
+use Danack\Code\Generator\DocBlock\Tag\ParamTag;
+use Danack\Code\Generator\DocBlock\Tag\ThrowsTag;
+
+
 use Danack\Code\Generator\PropertyGenerator;
 
 function getNamespace($namespaceClass) {
@@ -77,21 +81,15 @@ class APIGenerator {
     /**
      * @var ClassGenerator
      */
-    private $generator;
-    
+    private $classGenerator;
+
     private $interfaceGenerator;
-    
     private $outputPath;
     private $namespace;
     private $parameterTranslations = [];
-
     private $apiParameters = [];
-    
     private $delimiter = '#';
-
     private $operationNamespace;
-
-
     private $useNames = [];
     
     /**
@@ -142,10 +140,9 @@ class APIGenerator {
      * @param $constructorParams
      */
     function __construct($outputPath, $constructorParams) {
-        $this->generator = new ClassGenerator();
+        $this->classGenerator = new ClassGenerator();
         $this->interfaceGenerator = new InterfaceGenerator(); 
         $this->constructorParams = $constructorParams;
-        $this->addConstructorMethod();
         $this->outputPath = $outputPath;
     }
 
@@ -213,7 +210,7 @@ class APIGenerator {
      */
     function setFQCN($fqcn) {
         $this->fqcn = $fqcn;
-        $this->generator->setFQCN($fqcn);
+        $this->classGenerator->setFQCN($fqcn);
 
         if ($this->fqExceptionClassname == null) {
             $this->fqExceptionClassname =  $this->fqcn.'Exception';
@@ -237,7 +234,7 @@ class APIGenerator {
             $params = [];
 
             //Every API needs the Artax\Client object to send requests
-            $param = new ParameterGenerator('client', 'Artax\Client', null);
+            $param = new ParameterGenerator('client', 'Artax\AsyncClient', null);
             $params[] = $param;
             $body .= '$this->client = $client;'.PHP_EOL;
 
@@ -260,7 +257,7 @@ class APIGenerator {
 
             $methodGenerator->setBody($body);
             $methodGenerator->setParameters($params);
-            $this->generator->addMethodFromGenerator($methodGenerator);
+            $this->classGenerator->addMethodFromGenerator($methodGenerator);
         }
     }
     
@@ -268,8 +265,8 @@ class APIGenerator {
     /**
      *
      */
-    function addCallMethod() {
-        $methodGenerator = new MethodGenerator('callAPI');
+    function addExecMethod() {
+        $methodGenerator = new MethodGenerator('execute');
         $requestParam = new ParameterGenerator('request', 'Artax\Request');
         $successStatusParam = new ParameterGenerator('successStatuses', 'array', []);
         $methodGenerator->setParameters([$requestParam, $successStatusParam]);
@@ -289,12 +286,12 @@ class APIGenerator {
             '\Artax\Response  The response from Artax'
         );
 
-        $docBlockGenerator = new DocBlockGenerator('callAPI');
-        $docBlockGenerator->setLongDescription("Sends a request to the API");
+        $docBlockGenerator = new DocBlockGenerator('execute');
+        $docBlockGenerator->setLongDescription("Sends a request to the API synchronously");
         $docBlockGenerator->setTags($tags);
         $methodGenerator->setDocBlock($docBlockGenerator);
 
-        $this->generator->addMethodFromGenerator($methodGenerator);
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
 
 
@@ -333,9 +330,8 @@ END;
         $docBlockGenerator->setLongDescription("Execute an operation asynchronously.");
         $docBlockGenerator->setTags($tags);
         $methodGenerator->setDocBlock($docBlockGenerator);
-        $this->generator->addMethodFromGenerator($methodGenerator);
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
         $this->interfaceGenerator->addMethodFromGenerator($methodGenerator);
-        
     }
 
     /**
@@ -356,7 +352,7 @@ END;
 
         $body .= 'return $this->oauthService->signRequest($request);'.PHP_EOL;
         $methodGenerator->setBody($body);
-        $this->generator->addMethodFromGenerator($methodGenerator);
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
 
 
@@ -367,7 +363,7 @@ END;
         $methodGenerator = new MethodGenerator('prepareAPI');
         $methodGenerator->setParameters(['url', 'parameters']);
         $methodGenerator->setBody($this->getPrepareBody());
-        $this->generator->addMethodFromGenerator($methodGenerator);
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
 
 
@@ -396,7 +392,7 @@ END;
 
         $body = <<< 'END'
 
-$response = $this->client->request($request);
+$response = $this->request($request);
 $status = $response->getStatus();
 $status = intval($status);
 
@@ -495,7 +491,7 @@ END;
 
         $methodGenerator->setDocBlock($docBlockGenerator);
         $methodGenerator->setBody($body);
-        $this->generator->addMethodFromGenerator($methodGenerator);
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
         $this->interfaceGenerator->addMethodFromGenerator($methodGenerator);
     }
 
@@ -566,6 +562,9 @@ END;
         $operationGenerator->setAPIClassname($this->fqcn);
         $operationGenerator->generate();
         $this->addUseStatement($operationGenerator->getFQCN());
+
+        $this->addUseStatement('Artax\Response');
+        $this->addUseStatement('Alert\ReactorFactory');
 
         return $operationGenerator;
     }
@@ -826,25 +825,24 @@ END;
             
             $methodGenerator->setDocBlock("@return $type");
             
-            $this->generator->addMethodFromGenerator($methodGenerator);
+            $this->classGenerator->addMethodFromGenerator($methodGenerator);
 
             $methodGenerator = new MethodGenerator('set'.$translatedParam);
             $body = '$this->'.$apiParameter.' = $value;'.PHP_EOL;
             $parameterParameter = new ParameterGenerator('value');
             $methodGenerator->setParameter($parameterParameter);
             $methodGenerator->setBody($body);
-            $this->generator->addMethodFromGenerator($methodGenerator);
+            $this->classGenerator->addMethodFromGenerator($methodGenerator);
         }
     }
 
     /**
      * 
      */
-    private function addProperties() {
+    private function addProperties(ClassGenerator $classGenerator, array $nativeProperties) {
         $this->apiParameters;
-        $nativeProperties = [
-            'client' => 'Artax\Client'
-        ];
+
+
 
         if ($this->requiresOauth1 == true) {
             $nativeProperties['oauthService'] = 'ArtaxServiceBuilder\Service\Oauth1';
@@ -856,18 +854,80 @@ END;
             foreach ($properties as $property => $type) {
                 $propGenerator = new PropertyGenerator($property);
                 $propGenerator->setStandardDocBlock($type);
-                $this->generator->addPropertyFromGenerator($propGenerator);
+                $classGenerator->addPropertyFromGenerator($propGenerator);
             }
         }
     }
 
-
+    /**
+     * @param $fqcn
+     */
     function addUseStatement($fqcn) {
         if (in_array($fqcn, $this->useNames) == false) {
             $this->useNames[] = $fqcn;
         }
 
-        $this->generator->addUse($fqcn);
+        $this->classGenerator->addUse($fqcn);
+    }
+
+
+    /**
+     * 
+     */
+    function addSyncRequestMethod() {
+        $methodGenerator = new MethodGenerator('request');
+        $methodGenerator->addFlag(AbstractMemberGenerator::FLAG_PRIVATE);
+        
+$body = <<< 'END'
+
+$client = new \Artax\Client();
+
+return $client->request($request);
+//The below should work - but doesn't
+//
+//
+//$response = null;
+//$exception = null;
+//
+//$onError = function(\Exception $exceptionResult) use(&$exception) { $exception = $exceptionResult; };
+//$onResponse = function(Response $responseResult) use (&$response)  { $response = $responseResult; };
+//
+//$reactor = (new ReactorFactory)->select();
+//
+//$reactor->immediately(function() use ($onResponse, $onError, $request) {
+//        $this->client->request($request, $onResponse, $onError);
+//    });
+//
+//while (!($response || $exception)) {
+//    $reactor->tick();
+//}
+//
+//if ($response) {
+//    return $response;
+//}
+//
+//if ($exception) {
+//    /** @var $exception \Exception */
+//    throw $exception;
+//}
+//
+//throw new \LogicException("Neither response nor exception were set.");
+
+END;
+
+        $methodGenerator->setBody($body);
+
+        $docBlock = new DocBlockGenerator('Get the last response.');
+
+        $tags[] = new ParamTag('request', ['\Artax\Request']);
+        $tags[] = new GenericTag('return', '\Artax\Response');
+        $tags[] = new ThrowsTag(['\Exception']);
+        $docBlock->setTags($tags);
+        $methodGenerator->setDocBlock($docBlock);
+
+        $parameter = new ParameterGenerator('request', 'Artax\Request');
+        $methodGenerator->setParameter($parameter);
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
     
     /**
@@ -875,21 +935,20 @@ END;
      */
     function generate() {        
         $this->sanityCheck();
-        $this->addProperties();
+        $this->addConstructorMethod();
         $this->addSignMethod();
-        $this->addCallMethod();
-        $this->addExecAsyncMethod();
         $this->generateMethods();
         $this->addAPIParameterAccessMethod();
-//        $this->addOperationGetters();
 
         if (count($this->interfaces)) {
-            $this->generator->setImplementedInterfaces($this->interfaces);
+            $this->classGenerator->setImplementedInterfaces($this->interfaces);
         }
 
+        $this->addSyncRequestMethod();
         $this->generateExceptionClass();
-
-        $text = $this->generator->generate();
+        $this->addExecMethod();
+        $this->addExecAsyncMethod();
+        $text = $this->classGenerator->generate();
         saveFile($this->outputPath, $this->fqcn, $text);
     }
 }

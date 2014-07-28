@@ -6,43 +6,83 @@ namespace ArtaxServiceBuilder;
 
 class Parameter {
 
-    private $hasDefault;
+    private $hasDefault = false;
     private $defaultValue;
-    private $isOptional;
+    private $isOptional = false;
     private $name;
     private $isAPIParameter;
     private $description;
     private $location;
     
     private $sentAs;
-    
+    private $skipIfNull;
     private $permissions;
     private $scopes;
     
     private $filters = [];
     
-    
+
     function __construct($name) {
         $this->name = $name;
         $this->sentAs = $name;
         $this->isAPIParameter = false;
     }
 
+
+    /**
+     * @param $paramName
+     * @param $parameterDescription
+     * @param $isAPIParameter
+     * @return Parameter
+     */
+    public static function createFromDescription(
+        $paramName,
+        $parameterDescription,
+        $isAPIParameter
+    ) {
+        $parameter = new Parameter($paramName);
+        if (isset($parameterDescription['location'])) {
+            $parameter->location = $parameterDescription['location'];
+        }
+
+        if (isset($parameterDescription['filters'])) {
+            $parameter->filters = $parameterDescription['filters'];
+        }
+
+        if (isset($parameterDescription['optional'])) {
+            if ($parameterDescription['optional']) {
+                $parameter->isOptional = true;
+            }
+        }
+
+        if (isset($parameterDescription['default'])) {
+            $parameter->hasDefault = true;
+            $parameter->defaultValue = $parameterDescription['default'];
+            $parameter->isOptional = true;
+        }
+
+        if (isset($parameterDescription['description'])) {
+            $parameter->description = $parameterDescription['description'];
+        }
+
+        if (isset($parameterDescription['sentAs'])) {
+            $parameter->sentAs = $parameterDescription['sentAs'];
+        }
+
+        if (isset($parameterDescription['skipIfNull'])) {
+            $parameter->skipIfNull = $parameterDescription['skipIfNull'];
+        }
+
+        $parameter->isAPIParameter = $isAPIParameter;
+        
+        return $parameter;
+    }
     
+    /**
+     * @return mixed
+     */
     function getDescription() {
         return $this->description;
-    }
-
-    function setDescription($description) {
-        $this->description = $description;
-    }
-    
-    function setPermissions($permissions) {
-        $this->permissions = $permissions;
-    }
-
-    function setScopes($scopes) {
-        $this->scopes = $scopes;
     }
     
     /**
@@ -52,41 +92,11 @@ class Parameter {
         return $this->location;
     }
 
-    /**
-     * @param string $location
-     */
-    public function setLocation($location) {
-        $this->location = $location;
-    }
 
-    /**
-     * @param $filters
-     * 
-     * 
-     *  "filters": [
-            "strtolower",
-            {
-                "method": "MyClass::convertString",
-                "args": [ "test", "@value", "@api" ]
-            }
-        ]
-     * 
-     */
-    public function setFilters($filters) {
-        $this->filters = $filters;
-    }
-    
     public function getFilters() {
         return $this->filters;
     }
-    
-    
-    /**
-     * @param $isAPIParameter
-     */
-    function setIsAPIParameter($isAPIParameter) {
-        $this->isAPIParameter = $isAPIParameter;
-    }
+
 
     function getIsAPIParameter() {
         return $this->isAPIParameter;
@@ -121,24 +131,17 @@ class Parameter {
         return $this->sentAs;
     }
     
-    public function setSentAs($value) {
-        $this->sentAs = $value;
+    public function getSkipIfNull() {
+        return $this->skipIfNull;
     }
 
-    /**
-     * @param $defaultValue
-     */
-    public function setDefault($defaultValue) {
-        $this->defaultValue = $defaultValue;
-        $this->hasDefault = true;
-    }
-
-    /**
-     * @param $isOptional
-     */
-    public function setOptional($isOptional) {
-        $this->isOptional = $isOptional;
-    }
+//    /**
+//     * @param $defaultValue
+//     */
+//    public function setDefault($defaultValue) {
+//        $this->defaultValue = $defaultValue;
+//        $this->hasDefault = true;
+//    }
 }
 
  
