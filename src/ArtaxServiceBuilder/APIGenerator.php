@@ -311,7 +311,28 @@ $onError = function() {
     echo "Something is borked.";
 };
 
-$this->client->request($request, $callback, $onError);    
+
+$parseCallback = function (Response $response) use ($callback, $operation) {
+    $status = $response->getStatus();
+    if ($status < 200 || $status >= 300) {
+        //TODO - move to error first callbacks 
+        //$callback(error $e)
+        echo "Status is not OK $status : ".$response->getBody();
+        return;
+    }
+
+    try {
+        $parsedResponse = $operation->processResponse($response);
+        $callback($parsedResponse);
+    }
+    catch(\Exception $e) {
+        //TODO - move to error first callbacks 
+        //$callback(error $e)
+        echo "Exception parsing response: ".$e->getMessage();
+    }
+};
+
+$this->client->request($request, $parseCallback, $onError);    
 END;
 
         $methodGenerator->setBody($body);
