@@ -28,7 +28,7 @@
     "require":{
         "danack/danack-code": ">=2.4.4",
         "danack/danackhttp2": ">=1.2.0",
-        "rdlowrey/artax": "0.7.1"
+        "rdlowrey/artax": "~0.7.1"
     },
     "autoload": {
         "psr-0": {
