@@ -257,9 +257,14 @@ class GithubPaginator {
             $furthestType = self::PREVIOUS;
         }
 
-        if (self::$typeOrder[$furthestType] <
-            self::$typeOrder[$earliestType]) {
-            //TODO - links are borked.
+        
+        if (isset(self::$typeOrder[$furthestType]) &&
+            isset(self::$typeOrder[$earliestType])) {
+            if (self::$typeOrder[$furthestType] <
+                self::$typeOrder[$earliestType]
+            ) {
+                //TODO - links are borked.
+            }
         }
 
 
