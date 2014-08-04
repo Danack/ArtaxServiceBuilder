@@ -17,7 +17,6 @@
             "type": "vcs",
             "url": "https://github.com/Danack/DanackCode"
         }
-        
     ],
 
     "require-dev": {
