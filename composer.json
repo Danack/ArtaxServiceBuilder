@@ -12,7 +12,12 @@
         {
             "type": "vcs",
             "url": "https://github.com/rdlowrey/Artax"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/Danack/DanackCode"
         }
+        
     ],
 
     "require-dev": {
@@ -20,10 +25,10 @@
         "mockery/mockery": "0.9.1",
         "phpunit/phpunit": "4.1.3",
         "danack/auryn": "~0.9.5",
-        "rdlowrey/artax": "dev-master as 0.7.0"
+        "rdlowrey/artax": "0.7.1"
     },
     "require":{
-        "Danack/danack-code": ">=2.4.1",
+        "danack/danack-code": ">=2.4.4",
         "danack/danackhttp2": ">=1.2.0"
     },
     "autoload": {
