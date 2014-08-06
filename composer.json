@@ -11,10 +11,6 @@
         },
         {
             "type": "vcs",
-            "url": "https://github.com/rdlowrey/Artax"
-        },
-        {
-            "type": "vcs",
             "url": "https://github.com/Danack/DanackCode"
         }
     ],
@@ -26,9 +22,7 @@
         "danack/auryn": "~0.9.5"
     },
     "require":{
-        "danack/danack-code": ">=2.4.4",
-        "danack/danackhttp2": ">=1.2.0",
-        "rdlowrey/artax": "~0.7.1"
+        "danack/danack-code": ">=2.4.4"
     },
     "autoload": {
         "psr-0": {
