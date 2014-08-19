@@ -9,7 +9,37 @@ use Danack\Code\Generator\DocBlockGenerator;
 use Danack\Code\Generator\MethodGenerator;
 use Danack\Code\Generator\ParameterGenerator;
 use Danack\Code\Generator\DocBlock\Tag\GenericTag;
+use Danack\Code\Reflection\DocBlock\Tag\ParamTag;
 use Danack\Code\Generator\PropertyGenerator;
+
+function createParamTag(ParameterGenerator $parameter, $description) {
+
+    $paramType = $parameter->getType();
+
+    $simpleTypes = [
+        'array',
+        'bool',
+        'callable',
+        'int',
+        'mixed',
+        'string'
+    ];
+    
+    if (in_array(strtolower($paramType), $simpleTypes) == false) {
+        $paramType = '\\'.$paramType;
+    }
+    
+    $tag = new GenericTag(
+        'param',
+        sprintf(
+            '%s $%s %s',
+            $paramType,
+            $parameter->getName(),
+            $description
+        )
+    );
+    return $tag;
+}
 
 class OperationGenerator {
 
@@ -257,16 +287,51 @@ END;
     function addCreateRequestMethod() {
         $body = '$request = new \Artax\Request();'.PHP_EOL;
         $url = $this->operationDefinition->getURL();
-        $body .= sprintf('$url = "%s";'.PHP_EOL, addslashes($url));
+        $body .= '$url = null;'.PHP_EOL;
         $body .= sprintf('$request->setMethod(\'%s\');'.PHP_EOL, $this->operationDefinition->getHttpMethod());
 
-        $body .= '$queryParameters = [];'.PHP_EOL;
-
+        
+        
+        
+        
         $body .= ''.PHP_EOL;
 
         $first = true;
         $hasQueryParams = false;
+        $hasFormBody = false;
+        $hasJsonBody = false;
+        $hasURIVariables = false;
+
+        foreach ($this->operationDefinition->getParameters() as $operationParameter) {
+
+            if ($operationParameter->getLocation() === 'postField' ||
+                $operationParameter->getLocation() === 'postFile') {
+                $hasFormBody = true;
+            }
+            if ($operationParameter->getLocation() === 'json') {
+                $hasJsonBody = true;
+            }
+
+            if ($operationParameter->getLocation() === 'uri') {
+                $hasURIVariables = true;
+            }
+
+            if ($operationParameter->getLocation() === 'query') {
+                $hasQueryParams = true;
+            }
+
+            if ($operationParameter->getLocation() === 'absoluteURL') {
+                //$body .= '$url = '
+                //TODO - throw an error if both absoluteURL and uri variables are set
+            }
+        }
+
+
+        if ($hasQueryParams) {
+            $body .= '$queryParameters = [];'.PHP_EOL;
+        }
         
+
         $apiParameters = $this->apiGenerator->getAPIParameters();
         foreach ($this->operationDefinition->getParameters() as $operationParameter) {
 
@@ -292,40 +357,8 @@ END;
             }
         }
 
-        
-        $hasFormBody = false;
-        $hasJsonBody = false;
-        $hasURIVariables = false;
-
         $body .= ''.PHP_EOL;
-        foreach ($this->operationDefinition->getParameters() as $operationParameter) {
 
-            if ($operationParameter->getLocation() === 'postField' ||
-                $operationParameter->getLocation() === 'postFile') {
-                $hasFormBody = true;
-            }
-            if ($operationParameter->getLocation() === 'json') {
-                $hasJsonBody = true;
-            }
-
-            if ($operationParameter->getLocation() === 'uri') {
-                $hasURIVariables = true;
-            }
-
-            if ($operationParameter->getLocation() === 'query') {
-                $hasQueryParams = true;
-            }
-
-            if ($operationParameter->getLocation() === 'absoluteURL') {
-                //$body .= '$url = '
-                //TODO - throw an error if both absoluteURL and uri variables are set
-            }
-        }
-
-        if ($hasURIVariables) {
-            $body .= '$uriTemplate = new \ArtaxServiceBuilder\Service\UriTemplate\UriTemplate();'.PHP_EOL;
-            $body .= '$url = $uriTemplate->expand($url, $this->parameters);'.PHP_EOL;
-        }
 
         if ($hasFormBody) {
             $body .= '$formBody = new \Artax\FormBody;'.PHP_EOL;
@@ -385,13 +418,23 @@ END;
             $body .= '}'.PHP_EOL;
         }
 
+        //Nothing else has set the URL, use the one defined
+        $body .= 'if ($url == null) {'.PHP_EOL;
+        $body .= sprintf('    $url = "%s";'.PHP_EOL, addslashes($url));
+        $body .= '}'.PHP_EOL;
+
+        if ($hasURIVariables) {
+            $body .= '$uriTemplate = new \ArtaxServiceBuilder\Service\UriTemplate\UriTemplate();'.PHP_EOL;
+            $body .= '$url = $uriTemplate->expand($url, $this->parameters);'.PHP_EOL;
+        }
+        
         if ($hasQueryParams) {
-            //$body .= '$url = $url;'.PHP_EOL;
             $body .= 'if (count($queryParameters)) {'.PHP_EOL;
             $body .= '    $url = $url.\'?\'.http_build_query($queryParameters, \'\', \'&\', PHP_QUERY_RFC3986);'.PHP_EOL;
             $body .= '}'.PHP_EOL;
         }
 
+    
         $body .= '$request->setUri($url);'.PHP_EOL;
         $body .= ''.PHP_EOL;
         $body .= 'return $request;'.PHP_EOL;
@@ -553,6 +596,27 @@ END;
     }
 
 
+    function addExecuteAsyncMethod() {
+        $methodGenerator = new MethodGenerator('executeAsync');
+        $body = "\$request = \$this->createRequest();\n";
+//        $body .= $this->generateCreateFragment();
+//        $body .= $this->generateCallFragment();
+        $body .= "return \$this->api->executeAsync(\$request, \$this, \$callable);";
+        $methodGenerator->setBody($body);
+//        $docBlock = $this->generateExecuteDocBlock('Execute the operation asynchronously');
+//        $methodGenerator->setDocBlock($docBlock);
+
+        $callableParamGenerator = new ParameterGenerator('callable', 'callable');
+
+        $methodGenerator->setParameters([$callableParamGenerator]);
+        
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
+
+ 
+
+
+
     function generateParamFilterBlock(\ArtaxServiceBuilder\Parameter $parameter) {
 
         $i1 = '    ';//Indent 1
@@ -650,7 +714,13 @@ END;
         
         $methodGenerator->setBody($body);
         $docBlock = $this->generateExecuteDocBlock('Apply any filters necessary to the parameter');
-        $methodGenerator->setParameter('name');
+
+        $parameterGenerator = new ParameterGenerator('name', 'string');
+        
+        $methodGenerator->setParameter($parameterGenerator);
+
+        $tag = createParamTag($parameterGenerator, "The name of the parameter to get.");
+        $docBlock->setTag($tag);
         
         $methodGenerator->setDocBlock($docBlock);
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
@@ -690,17 +760,24 @@ END;
         $body .= $this->generateCallFragment();
         $body .= $this->generateResponseFragment();
 
-        $docBlock = $this->generateExecuteDocBlock('Dispatch the request for this operation and process the response.Allows you to modify the request before it is sent.');
-        
-        $methodGenerator->setDocBlock($docBlock);
-        $methodGenerator->setBody($body);
+        $docBlock = $this->generateExecuteDocBlock('Dispatch the request for this operation and process the response. Allows you to modify the request before it is sent.');
 
         $parameter = new ParameterGenerator('request', 'Artax\Request');
         $methodGenerator->setParameter($parameter);
+
+        $tag = createParamTag($parameter, 'The request to be processed');
+        $docBlock->setTag($tag);
+
+        $methodGenerator->setDocBlock($docBlock);
+        $methodGenerator->setBody($body);
+        
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
 
 
+    /**
+     * 
+     */
     function addProcessResponseMethod() {
 
         $methodGenerator = new MethodGenerator('processResponse');
@@ -708,21 +785,24 @@ END;
         $body = '';
         $body .= $this->generateResponseFragment();
 
-        $docBlock = $this->generateExecuteDocBlock('Dispatch the request for this operation and process the response.Allows you to modify the request before it is sent.');
+        $docBlock = $this->generateExecuteDocBlock('Dispatch the request for this operation and process the response. Allows you to modify the request before it is sent.');
 
         $methodGenerator->setDocBlock($docBlock);
         $methodGenerator->setBody($body);
 
-        $parameter = new ParameterGenerator('response', 'Artax\Response');
-        $methodGenerator->setParameter($parameter);
+        $parameters = [];
+        //$parameters[] = new ParameterGenerator('request', 'Artax\Request');
+        $parameters[] = new ParameterGenerator('response', 'Artax\Response');
+        $methodGenerator->setParameters($parameters);
+
+//        $tag = createParamTag($parameters[0], 'The request to be processed');
+//        $docBlock->setTag($tag);
+        $tag = createParamTag($parameters[0], 'The HTTP response.');
+        $docBlock->setTag($tag);
+
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
 
-
-    
-    
-    
-    
     /**
      * @throws \ArtaxServiceBuilder\APIBuilderException
      */
@@ -746,11 +826,9 @@ END;
         $this->addCreateRequestMethod();
         $this->addCreateAndCallMethod();
         $this->addExecuteMethod();
+        $this->addExecuteAsyncMethod();
         $this->addDispatchMethod();
         $this->addProcessResponseMethod();
-
-        
-        
 
         $this->classGenerator->setImplementedInterfaces(['ArtaxServiceBuilder\Operation']);
         $this->classGenerator->setFQCN($fqcn);

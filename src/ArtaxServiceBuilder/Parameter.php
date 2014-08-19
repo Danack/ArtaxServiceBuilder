@@ -135,13 +135,10 @@ class Parameter {
         return $this->skipIfNull;
     }
 
-//    /**
-//     * @param $defaultValue
-//     */
-//    public function setDefault($defaultValue) {
-//        $this->defaultValue = $defaultValue;
-//        $this->hasDefault = true;
-//    }
+
+    public function getType() {
+        return '';
+    }
 }
 
  

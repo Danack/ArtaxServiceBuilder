@@ -202,7 +202,12 @@ class OperationDefinition {
                     $isAPIParameter
                 );
 
-                $this->parameters[] = $parameter;
+                //TODO - should a warning be given when a paramter overrides another?
+//                if(isset($this->parameters[$paramName])) {
+//                    echo "over-riding param $paramName".PHP_EOL;
+//                }
+                
+                $this->parameters[$paramName] = $parameter;
             }
         }
     }
