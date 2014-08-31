@@ -309,7 +309,7 @@ class APIGenerator {
 
         $body = <<< 'END'
 $promise = $this->client->request($request);
-$promise->when(function($error, Response $response) use ($callback, $operation) {
+$promise->when(function(\Exception $error = null, Response $response = null) use ($callback, $operation) {
 
     if($error) {
         $callback($error, $response);
