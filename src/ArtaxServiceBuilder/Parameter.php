@@ -16,12 +16,9 @@ class Parameter {
     
     private $sentAs;
     private $skipIfNull;
-    private $permissions;
-    private $scopes;
-    
+    private $type = 'mixed';
     private $filters = [];
     
-
     function __construct($name) {
         $this->name = $name;
         $this->sentAs = $name;
@@ -72,6 +69,12 @@ class Parameter {
         if (isset($parameterDescription['skipIfNull'])) {
             $parameter->skipIfNull = $parameterDescription['skipIfNull'];
         }
+
+        
+        if (isset($parameterDescription['type'])) {
+            $parameter->type = $parameterDescription['type'];
+        }
+        
 
         $parameter->isAPIParameter = $isAPIParameter;
         
@@ -137,7 +140,7 @@ class Parameter {
 
 
     public function getType() {
-        return '';
+        return $this->type;
     }
 }
 

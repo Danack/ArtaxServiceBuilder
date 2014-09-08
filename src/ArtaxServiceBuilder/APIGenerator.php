@@ -147,6 +147,9 @@ class APIGenerator {
         $this->outputPath = $outputPath;
     }
 
+    /**
+     * @param $requiresOauth1
+     */
     function setRequiresOauth1($requiresOauth1) {
         $this->requiresOauth1 = $requiresOauth1;
     }
@@ -166,6 +169,9 @@ class APIGenerator {
         $this->authErrorAsException = $authErrorAsException;
     }
 
+    /**
+     * @return mixed
+     */
     function getFQCN() {
         return $this->fqcn;
     }
@@ -220,6 +226,9 @@ class APIGenerator {
         $this->namespace = \ArtaxServiceBuilder\getNamespace($this->fqcn);
     }
 
+    /**
+     * @param $operationNamespace
+     */
     function setOperationNamespace($operationNamespace) {
         $this->operationNamespace = $operationNamespace;
     }
@@ -496,7 +505,7 @@ END;
                 $paramsStrings[] = $requiredParam->getName();
                 $tags[] = new GenericTag(
                     'param',
-                    $requiredParam->getType().' \$'.$requiredParam->getName().' '.$requiredParam->getDescription()
+                    $requiredParam->getType().' $'.$requiredParam->getName().' '.$requiredParam->getDescription()
                 );
                 //TODO - replace with array_map on $paramsStrings
                 $requiredParamsStringsWithDollar[] = '$'.$requiredParam->getName();
