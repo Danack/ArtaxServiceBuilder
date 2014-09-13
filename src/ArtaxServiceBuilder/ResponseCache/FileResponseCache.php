@@ -22,7 +22,6 @@ class FileResponseCache implements ResponseCache {
         $string = $request->getUri();
         $filename = parse_url($string, PHP_URL_HOST);
         $filename .= '_'.parse_url($string, PHP_URL_PATH);
-        //$filename = preg_replace("/[^a-zA-Z0-9]+/", "_", $filename);
         $headers = $request->getAllHeaders();
         ksort($headers);
         foreach ($headers as $header => $values) {

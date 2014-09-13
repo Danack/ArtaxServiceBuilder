@@ -135,6 +135,7 @@ class APIGenerator {
     
     private $authErrorAsException = false;
     
+    private $constructorParams;
 
     /**
      * @param $outputPath
@@ -246,12 +247,12 @@ class APIGenerator {
             //Every API needs the Artax\Client object to send requests
             $param = new ParameterGenerator('client', 'Artax\Client', null);
             $params[] = $param;
+            $body .= '$this->client = $client;'.PHP_EOL;
 
             $param = new ParameterGenerator('responseCache', 'ArtaxServiceBuilder\ResponseCache', null);
             $params[] = $param;
+            $body .= '$this->responseCache = $responseCache;'.PHP_EOL;
 
-            $body .= '$this->client = $client;'.PHP_EOL;
-            
             //Add the params
             foreach ($this->constructorParams as $constructorParam) {
                 $param = new ParameterGenerator($constructorParam);
@@ -284,7 +285,7 @@ class APIGenerator {
         $requestParam = new ParameterGenerator('request', 'Artax\Request');
         $successStatusParam = new ParameterGenerator('successStatuses', 'array', []);
         $methodGenerator->setParameters([$requestParam, $successStatusParam]);
-        $methodGenerator->setBody($this->getCallBody());
+        $methodGenerator->setBody($this->getExecuteBody());
 
         $tags = [];
         $tags[] = new GenericTag(
@@ -321,12 +322,12 @@ class APIGenerator {
         $methodGenerator->setParameters([$requestParam, $operationParam, $callableParam]);
 
         $body = <<< 'END'
-        
+
+$originalRequest = clone $request;
 $cachingHeaders = $this->responseCache->getCachingHeaders($request);
 $request->setAllHeaders($cachingHeaders);
-        
 $promise = $this->client->request($request);
-$promise->when(function(\Exception $error = null, Response $response = null) use ($request, $callback, $operation) {
+$promise->when(function(\Exception $error = null, Response $response = null) use ($originalRequest, $callback, $operation) {
 
     if($error) {
         $callback($error, $response);
@@ -336,13 +337,13 @@ $promise->when(function(\Exception $error = null, Response $response = null) use
     $status = $response->getStatus();
         
     if ($status == 200) {
-        $this->responseCache->storeResponse($request, $response);
+        $this->responseCache->storeResponse($originalRequest, $response);
     }
     else if ($status == 304) {
         $response = $this->responseCache->getResponse($originalRequest);
     }
     else if ($status < 200 || $status >= 300 ) {
-        $exception = new \Exception("Status $status is not treated as OK.");
+        $exception = new ArtaxServiceException("Status $status is not treated as OK.");
         $callback($exception, $response);
         return;
     }
@@ -440,37 +441,27 @@ END;
     /**
      * @return string
      */
-    function getCallBody() {
+    function getExecuteBody() {
 
         $body = <<< 'END'
         
-$requestClone = clone $request;
-$promise = $this->client->request($requestClone);
+$originalRequest = clone $request;
+$cachingHeaders = $this->responseCache->getCachingHeaders($request);
+$request->setAllHeaders($cachingHeaders);
+$promise = $this->client->request($request);
 $response = $promise->wait();
 /** @var $response \Artax\Response */
 $status = $response->getStatus();
 $status = intval($status);
-
-if ($successStatuses != null  && in_array($status, $successStatuses)) {
-    throw new \%s(
-        $response, 
-        "Status does not match one of ".implode(', ', $successStatuses)
-    );
-}
-else {
         
-    if ($status == 200) {
-        $this->responseCache->storeResponse($request, $response);
-    }
-    else if ($status == 304) {
-        $response = $this->responseCache->getResponse($request);
-    }
-    else if ($status < 200 || $status >= 300) {
-        throw new \%s(
-            $response, 
-            "Status $status is not 20x success."
-        );
-    }
+if ($status == 200) {
+    $this->responseCache->storeResponse($originalRequest, $response);
+}
+else if ($status == 304) {
+    $response = $this->responseCache->getResponse($request);
+}
+else if ($status < 200 || $status >= 300 ) {
+    throw new ArtaxServiceException("Status $status is not treated as OK.");
 }
 
 return $response;
@@ -624,9 +615,8 @@ END;
         $operationGenerator->setAPIClassname($this->fqcn);
         $operationGenerator->generate();
         $this->addUseStatement($operationGenerator->getFQCN());
-
         $this->addUseStatement('Artax\Response');
-        //$this->addUseStatement('Alert\ReactorFactory');
+        $this->addUseStatement('ArtaxServiceBuilder\ArtaxServiceException');
 
         return $operationGenerator;
     }
@@ -1006,6 +996,8 @@ END;
         if (count($this->interfaces)) {
             $this->classGenerator->setImplementedInterfaces($this->interfaces);
         }
+        
+        $this->classGenerator->addUse('ArtaxServiceBuilder\ResponseCache');
 
         //$this->addSyncRequestMethod();
         $this->generateExceptionClass();
