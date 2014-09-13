@@ -246,6 +246,10 @@ class APIGenerator {
             //Every API needs the Artax\Client object to send requests
             $param = new ParameterGenerator('client', 'Artax\Client', null);
             $params[] = $param;
+
+            $param = new ParameterGenerator('responseCache', 'ArtaxServiceBuilder\ResponseCache', null);
+            $params[] = $param;
+
             $body .= '$this->client = $client;'.PHP_EOL;
             
             //Add the params
@@ -317,8 +321,12 @@ class APIGenerator {
         $methodGenerator->setParameters([$requestParam, $operationParam, $callableParam]);
 
         $body = <<< 'END'
+        
+$cachingHeaders = $this->responseCache->getCachingHeaders($request);
+$request->setAllHeaders($cachingHeaders);
+        
 $promise = $this->client->request($request);
-$promise->when(function(\Exception $error = null, Response $response = null) use ($callback, $operation) {
+$promise->when(function(\Exception $error = null, Response $response = null) use ($request, $callback, $operation) {
 
     if($error) {
         $callback($error, $response);
@@ -326,7 +334,14 @@ $promise->when(function(\Exception $error = null, Response $response = null) use
     }
 
     $status = $response->getStatus();
-    if ($status < 200 || $status >= 300) {
+        
+    if ($status == 200) {
+        $this->responseCache->storeResponse($request, $response);
+    }
+    else if ($status == 304) {
+        $response = $this->responseCache->getResponse($originalRequest);
+    }
+    else if ($status < 200 || $status >= 300 ) {
         $exception = new \Exception("Status $status is not treated as OK.");
         $callback($exception, $response);
         return;
@@ -428,7 +443,9 @@ END;
     function getCallBody() {
 
         $body = <<< 'END'
-$promise = $this->client->request($request);
+        
+$requestClone = clone $request;
+$promise = $this->client->request($requestClone);
 $response = $promise->wait();
 /** @var $response \Artax\Response */
 $status = $response->getStatus();
@@ -441,7 +458,14 @@ if ($successStatuses != null  && in_array($status, $successStatuses)) {
     );
 }
 else {
-    if ($status < 200 || $status >= 300) {
+        
+    if ($status == 200) {
+        $this->responseCache->storeResponse($request, $response);
+    }
+    else if ($status == 304) {
+        $response = $this->responseCache->getResponse($request);
+    }
+    else if ($status < 200 || $status >= 300) {
         throw new \%s(
             $response, 
             "Status $status is not 20x success."
@@ -882,6 +906,8 @@ END;
         if ($this->requiresOauth1 == true) {
             $nativeProperties['oauthService'] = 'ArtaxServiceBuilder\Service\Oauth1';
         }
+
+        $nativeProperties['responseCache'] = 'ArtaxServiceBuilder\ResponseCache';
 
         $allProperties = [$this->apiParameters, $nativeProperties];
 
