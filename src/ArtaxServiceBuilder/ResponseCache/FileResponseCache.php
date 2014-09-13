@@ -68,16 +68,24 @@ class FileResponseCache implements ResponseCache {
 
         if ($cachedResponse != null) {
             /** @var $cachedResponse \Artax\Response */
-            $ifNoneMatchValues = $cachedResponse->getHeader('If-None-Match');
-            foreach ($ifNoneMatchValues as $value) {
-                $headers['If-None-Match']  = $value;
-                //@TODO - are multiple 'if-none-match headers allowed?
+            if ($cachedResponse->hasHeader('ETag')) {
+                $etagValues = $cachedResponse->getHeader('ETag');
+                foreach ($etagValues as $value) {
+                    $headers['If-None-Match'] = $value;
+                    //@TODO - are multiple 'if-none-match headers allowed?
+                }
             }
             
-            $ifModifiedValues = $cachedResponse->getHeader('If-Modified-Since');
-            foreach ($ifModifiedValues as $value) {
-                $headers['If-Modified-Since']  = $value;
+            if ($cachedResponse->hasHeader('Last-Modified')) {
+                $ifModifiedValues = $cachedResponse->getHeader('Last-Modified');
+                foreach ($ifModifiedValues as $value) {
+                    $headers['If-Modified-Since'] = $value;
+                }
             }
+        }
+        
+        if (count($headers) == 0) {
+            echo "hmm";
         }
 
         return $headers;
