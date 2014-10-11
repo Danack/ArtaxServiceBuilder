@@ -102,7 +102,6 @@ class OperationGenerator {
         $requiredProperties = [
             'api' => '\\'.$this->apiClassname,
             'parameters' => 'array',
-            'response' => '\Artax\Response'
         ];
 
         //TODO - deal with clashes between this and bits of the actual api
@@ -112,16 +111,6 @@ class OperationGenerator {
             $propertyGenerator->setDocBlock($docBlock);
             $this->classGenerator->addPropertyFromGenerator($propertyGenerator);
         }
-
-        $docBlock = new DocBlockGenerator('Get the last response.');
-        $tags[] = new GenericTag('return', '\Artax\Response');
-        $docBlock->setTags($tags);
-
-        $methodGenerator = new MethodGenerator('getResponse');
-        $body = 'return $this->response;';
-        $methodGenerator->setDocBlock($docBlock);
-        $methodGenerator->setBody($body);
-        $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
 
     /**
@@ -520,7 +509,6 @@ END;
         }
 
         $body .= '$response = $this->api->execute($request);'.PHP_EOL;
-        $body .= '$this->response = $response;'.PHP_EOL;
 
         return $body; 
     }
@@ -587,14 +575,13 @@ END;
      * 
      */
     function addExecuteMethod() {
-        $methodGenerator = new MethodGenerator('execute');
-        $body = '';
-        $body .= $this->generateCreateFragment();
-//        $body .= $this->generateCallFragment();
-//        $body .= $this->generateResponseFragment();
+        
+        $body  = $this->generateCreateFragment();
         $body .= 'return $this->dispatch($request);';
+        $docBlock = $this->generateExecuteDocBlock('Execute the operation, returning the parsed response');
+
+        $methodGenerator = new MethodGenerator('execute');
         $methodGenerator->setBody($body);
-        $docBlock = $this->generateExecuteDocBlock('Execute the operation');
         $methodGenerator->setDocBlock($docBlock);
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
@@ -603,21 +590,14 @@ END;
      * 
      */
     function addExecuteAsyncMethod() {
-        $methodGenerator = new MethodGenerator('executeAsync');
-        //$body = "\$request = \$this->createRequest();\n";
-//        $body .= $this->generateCreateFragment();
-//        $body .= $this->generateCallFragment();
-        //$body .= "return \$this->api->executeAsync(\$request, \$this, \$callable);";
-
         $body  = $this->generateCreateFragment();
-        $body .= $this->generateCreateFragment();
-        $body .= 'return $this->dispatchAsync($request, $callable));';
-
-        $methodGenerator->setBody($body);
-        $docBlock = $this->generateExecuteDocBlock('Execute the operation asynchronously');
-        $methodGenerator->setDocBlock($docBlock);
-
+        $body .= 'return $this->dispatchAsync($request, $callable);';
+        $docBlock = $this->generateExecuteDocBlock('Execute the operation asynchronously, passing the parsed response to the callback');
         $callableParamGenerator = new ParameterGenerator('callable', 'callable');
+
+        $methodGenerator = new MethodGenerator('executeAsync');
+        $methodGenerator->setBody($body);
+        $methodGenerator->setDocBlock($docBlock);
         $methodGenerator->setParameters([$callableParamGenerator]);
 
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
@@ -791,7 +771,7 @@ END;
      * 
      */
     function addDispatchAsyncMethod() {
-        $methodGenerator = new MethodGenerator('dispatch');
+        $methodGenerator = new MethodGenerator('dispatchAsync');
         $body = 'return $this->api->executeAsync($request, $this, $callable);';
 
         $docBlock = $this->generateExecuteDocBlock('Dispatch the request for this operation and process the response asynchronously. Allows you to modify the request before it is sent.');

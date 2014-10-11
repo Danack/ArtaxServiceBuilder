@@ -330,7 +330,7 @@ $promise = $this->client->request($request);
 $promise->when(function(\Exception $error = null, Response $response = null) use ($originalRequest, $callback, $operation) {
 
     if($error) {
-        $callback($error, $response);
+        $callback($error, null);
         return;
     }
 
@@ -348,7 +348,7 @@ $promise->when(function(\Exception $error = null, Response $response = null) use
             $originalRequest,
             $response
         );
-        $callback($exception, $response);
+        $callback($exception, null);
         return;
     }
 
