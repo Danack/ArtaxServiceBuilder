@@ -524,7 +524,10 @@ END;
 
         return $body; 
     }
-    
+
+    /**
+     * @return string
+     */
     private function generateResponseFragment() {
         $body = '';
         $responseClass = $this->operationDefinition->getResponseClass();
@@ -587,42 +590,50 @@ END;
         $methodGenerator = new MethodGenerator('execute');
         $body = '';
         $body .= $this->generateCreateFragment();
-        $body .= $this->generateCallFragment();
-        $body .= $this->generateResponseFragment();
+//        $body .= $this->generateCallFragment();
+//        $body .= $this->generateResponseFragment();
+        $body .= 'return $this->dispatch($request);';
         $methodGenerator->setBody($body);
         $docBlock = $this->generateExecuteDocBlock('Execute the operation');
         $methodGenerator->setDocBlock($docBlock);
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
 
-
+    /**
+     * 
+     */
     function addExecuteAsyncMethod() {
         $methodGenerator = new MethodGenerator('executeAsync');
-        $body = "\$request = \$this->createRequest();\n";
+        //$body = "\$request = \$this->createRequest();\n";
 //        $body .= $this->generateCreateFragment();
 //        $body .= $this->generateCallFragment();
-        $body .= "return \$this->api->executeAsync(\$request, \$this, \$callable);";
+        //$body .= "return \$this->api->executeAsync(\$request, \$this, \$callable);";
+
+        $body  = $this->generateCreateFragment();
+        $body .= $this->generateCreateFragment();
+        $body .= 'return $this->dispatchAsync($request, $callable));';
+
         $methodGenerator->setBody($body);
-//        $docBlock = $this->generateExecuteDocBlock('Execute the operation asynchronously');
-//        $methodGenerator->setDocBlock($docBlock);
+        $docBlock = $this->generateExecuteDocBlock('Execute the operation asynchronously');
+        $methodGenerator->setDocBlock($docBlock);
 
         $callableParamGenerator = new ParameterGenerator('callable', 'callable');
-
         $methodGenerator->setParameters([$callableParamGenerator]);
-        
+
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
 
- 
 
-
-
+    /**
+     * @param Parameter $parameter
+     * @return string
+     * @throws APIBuilderException
+     */
     function generateParamFilterBlock(\ArtaxServiceBuilder\Parameter $parameter) {
 
         $i1 = '    ';//Indent 1
         $i2 = '        ';//Indent 1
-        
-        
+
         $text = '';
 
         $text .= sprintf(
@@ -645,7 +656,6 @@ END;
                         $text .= $i2.'$args[] = $value;'.PHP_EOL;
                     }
                     elseif ($data == '@api') {
-                        $data = $this;
                         $text .= $i2."\$args[] = \$this->\$api;".PHP_EOL;
                     }
                     else {
@@ -674,8 +684,10 @@ END;
 
         return $text;
     }
-    
 
+    /**
+     * @throws APIBuilderException
+     */
     function addFilteredParameterMethod() {
         $methodGenerator = new MethodGenerator('getFilteredParameter');
         $body = 'if (array_key_exists($name, $this->parameters) == false) {'.PHP_EOL;
@@ -778,6 +790,32 @@ END;
     /**
      * 
      */
+    function addDispatchAsyncMethod() {
+        $methodGenerator = new MethodGenerator('dispatch');
+        $body = 'return $this->api->executeAsync($request, $this, $callable);';
+
+        $docBlock = $this->generateExecuteDocBlock('Dispatch the request for this operation and process the response asynchronously. Allows you to modify the request before it is sent.');
+
+        $requestParameter = new ParameterGenerator('request', 'Artax\Request');
+        $methodGenerator->setParameter($requestParameter);
+        $tag = createParamTag($requestParameter, 'The request to be processed');
+        $docBlock->setTag($tag);
+
+        $callableParameter = new ParameterGenerator('callable', 'callable');
+        $methodGenerator->setParameter($callableParameter);
+        $callableTag = createParamTag($callableParameter, 'The callable that processes the response');
+        $docBlock->setTag($callableTag);
+
+        $methodGenerator->setDocBlock($docBlock);
+        $methodGenerator->setBody($body);
+
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
+    
+
+    /**
+     * 
+     */
     function addProcessResponseMethod() {
 
         $methodGenerator = new MethodGenerator('processResponse');
@@ -791,12 +829,8 @@ END;
         $methodGenerator->setBody($body);
 
         $parameters = [];
-        //$parameters[] = new ParameterGenerator('request', 'Artax\Request');
         $parameters[] = new ParameterGenerator('response', 'Artax\Response');
         $methodGenerator->setParameters($parameters);
-
-//        $tag = createParamTag($parameters[0], 'The request to be processed');
-//        $docBlock->setTag($tag);
         $tag = createParamTag($parameters[0], 'The HTTP response.');
         $docBlock->setTag($tag);
 
@@ -828,6 +862,7 @@ END;
         $this->addExecuteMethod();
         $this->addExecuteAsyncMethod();
         $this->addDispatchMethod();
+        $this->addDispatchAsyncMethod();
         $this->addProcessResponseMethod();
 
         $this->classGenerator->setImplementedInterfaces(['ArtaxServiceBuilder\Operation']);
