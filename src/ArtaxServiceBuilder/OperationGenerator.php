@@ -279,9 +279,7 @@ END;
         $body .= '$url = null;'.PHP_EOL;
         $body .= sprintf('$request->setMethod(\'%s\');'.PHP_EOL, $this->operationDefinition->getHttpMethod());
 
-        
-        
-        
+
         
         $body .= ''.PHP_EOL;
 
@@ -428,7 +426,17 @@ END;
         $body .= ''.PHP_EOL;
         $body .= 'return $request;'.PHP_EOL;
 
+
+        $tags[] = new GenericTag('return', '\Artax\Request');
+
+        $docBlock = new DocBlockGenerator(
+            'Create an Artax\Request object from the operation.',
+            null,
+            $tags
+        );
+
         $methodGenerator = new MethodGenerator('createRequest');
+        $methodGenerator->setDocBlock($docBlock);
         $methodGenerator->setBody($body);
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
