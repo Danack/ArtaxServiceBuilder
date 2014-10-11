@@ -178,7 +178,7 @@ END;
             {
                 return sprintf(
                     $indent.'$formBody->addField(\'%s\', $value);'.PHP_EOL,
-                    $operationParameter->getName()
+                    $operationParameter->getSentAs()
                 );
             }
 
@@ -186,7 +186,7 @@ END;
             {
                 return sprintf(
                     $indent.'$formBody->addFileField(\'%s\', $value);'.PHP_EOL,
-                    $operationParameter->getName()
+                    $operationParameter->getSentAs()
                 );
                 break;
             }
@@ -195,7 +195,7 @@ END;
             {
                 return sprintf(
                     $indent.'$jsonParams[\'%s\'] = $value;'.PHP_EOL,
-                    $operationParameter->getName()
+                    $operationParameter->getSentAs()
                 );
             }
 
@@ -213,7 +213,7 @@ END;
             {
                 return sprintf(
                     $indent.'$queryParameters[\'%s\'] = $value;'.PHP_EOL,
-                    $operationParameter->getName(),
+                    $operationParameter->getSentAs(),
                     $operationParameter->getName()
                 );
             }

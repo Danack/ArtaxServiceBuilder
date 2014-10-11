@@ -75,7 +75,6 @@ class Parameter {
             $parameter->type = $parameterDescription['type'];
         }
         
-
         $parameter->isAPIParameter = $isAPIParameter;
         
         return $parameter;

@@ -343,7 +343,11 @@ $promise->when(function(\Exception $error = null, Response $response = null) use
         $response = $this->responseCache->getResponse($originalRequest);
     }
     else if ($status < 200 || $status >= 300 ) {
-        $exception = new ArtaxServiceException("Status $status is not treated as OK.");
+        $exception = new BadResponseException(
+            "Status $status is not treated as OK.",
+            $originalRequest,
+            $response
+        );
         $callback($exception, $response);
         return;
     }
@@ -461,7 +465,11 @@ else if ($status == 304) {
     $response = $this->responseCache->getResponse($request);
 }
 else if ($status < 200 || $status >= 300 ) {
-    throw new ArtaxServiceException("Status $status is not treated as OK.");
+    throw new BadResponseException(
+        "Status $status is not treated as OK.",
+        $originalRequest,
+        $response
+    );
 }
 
 return $response;
@@ -616,7 +624,8 @@ END;
         $operationGenerator->generate();
         $this->addUseStatement($operationGenerator->getFQCN());
         $this->addUseStatement('Artax\Response');
-        $this->addUseStatement('ArtaxServiceBuilder\ArtaxServiceException');
+        //$this->addUseStatement('ArtaxServiceBuilder\ArtaxServiceException');
+        $this->addUseStatement('ArtaxServiceBuilder\BadResponseException');
 
         return $operationGenerator;
     }
