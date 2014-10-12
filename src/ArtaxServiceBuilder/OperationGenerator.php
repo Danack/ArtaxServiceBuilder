@@ -96,7 +96,7 @@ class OperationGenerator {
     }
 
     /**
-     *
+     * Add the properties to the Operation that are always present.
      */
     function addProperties() {
         $requiredProperties = [
@@ -114,7 +114,7 @@ class OperationGenerator {
     }
 
     /**
-     *
+     * Add the ability to change the API instance.
      */
     function addSetAPIMethod() {
         $methodGenerator = new MethodGenerator('setAPI');
@@ -125,7 +125,7 @@ class OperationGenerator {
     }
 
     /**
-     *
+     * Add the ability to set any/all params with an array of key value pairs.
      */
     function addSetParameterMethod() {
         $methodGenerator = new MethodGenerator('setParams');
@@ -150,29 +150,27 @@ END;
 
 
     /**
+     * Generate the code for setting a parameter in the request
      * @param $indent
      * @param Parameter $operationParameter
      * @return string
      */
-    function  generateParameterSetBlock($indent, \ArtaxServiceBuilder\Parameter $operationParameter) {
+    private function generateParameterSetBlock($indent, \ArtaxServiceBuilder\Parameter $operationParameter) {
 
         switch ($operationParameter->getLocation()) {
-            case 'absoluteURL':
-            {
+            case 'absoluteURL': {
                 return $indent.'$url = $value;'.PHP_EOL;
                 break;
             }
 
-            case 'postField':
-            {
+            case 'postField': {
                 return sprintf(
                     $indent.'$formBody->addField(\'%s\', $value);'.PHP_EOL,
                     $operationParameter->getSentAs()
                 );
             }
 
-            case 'postFile':
-            {
+            case 'postFile': {
                 return sprintf(
                     $indent.'$formBody->addFileField(\'%s\', $value);'.PHP_EOL,
                     $operationParameter->getSentAs()
@@ -180,16 +178,14 @@ END;
                 break;
             }
 
-            case 'json':
-            {
+            case 'json': {
                 return sprintf(
                     $indent.'$jsonParams[\'%s\'] = $value;'.PHP_EOL,
                     $operationParameter->getSentAs()
                 );
             }
 
-            case ('header'):
-            {
+            case ('header'): {
                 return sprintf(
                     $indent.'$request->setHeader(\'%s\', $value);'.PHP_EOL,
                     $operationParameter->getSentAs(),
@@ -198,8 +194,7 @@ END;
             }
 
             default:
-            case 'query':
-            {
+            case 'query': {
                 return sprintf(
                     $indent.'$queryParameters[\'%s\'] = $value;'.PHP_EOL,
                     $operationParameter->getSentAs(),
@@ -268,7 +263,7 @@ END;
     }
 
     /**
-     * The biggest function.
+     * Generate the method that creates an Artax\Request from the operation.
      * 
      * TODO - refactor this into chunks when it's a bit more stable
      * TODO - use \Artax\Uri
@@ -442,7 +437,7 @@ END;
     }
     
     /**
-     * 
+     * Add methods to access each of the parameters in the operation.
      */
     function addAccessorMethods() {
         foreach($this->operationDefinition->getParameters() as $parameter) {
@@ -461,7 +456,7 @@ END;
     }
     
     /**
-     * 
+     * Add the constructor method for the operation
      */
     private function addConstructorMethod() {
         $requiredParameters = $this->operationDefinition->getRequiredParams();
@@ -497,26 +492,27 @@ END;
         $methodGenerator->setBody($body);
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
-    
+
     /**
-     * 
+     * Helper method to avoid repitition
+     * @return string
      */
-    private function addOptionalParamMethods() {
-
-    }
-
     private function generateCreateFragment() {
         return '$request = $this->createRequest();'.PHP_EOL;
     }
-    
-    private function generateCallFragment() {
+
+    /**
+     * Helper method to avoid repitition
+     * @return string
+     */
+    private function generateExecuteFragment() {
         $body = '';
 
         if ($this->operationDefinition->getNeedsSigning()) {
             $body .= '$request = $this->api->signRequest($request);'.PHP_EOL;
         }
 
-        $body .= '$response = $this->api->execute($request);'.PHP_EOL;
+        $body .= '$response = $this->api->execute($request, $this);'.PHP_EOL;
 
         return $body; 
     }
@@ -524,43 +520,42 @@ END;
     /**
      * @return string
      */
-    private function generateResponseFragment() {
+    private function generateResponseFragment($indent = '') {
         $body = '';
         $responseClass = $this->operationDefinition->getResponseClass();
         $responseFactory = $this->operationDefinition->getResponseFactory();
         $responseCallable = $this->operationDefinition->getResponseCallable();
 
         if ($responseCallable) {
-            //TODO -support this
-            exit(0);
+            throw new \Exception("This is not implemented yet.");
         }
         else if ($responseFactory) {
             //Response is turned by $responseFactory into $responseClass
             $body .= <<< END
-\$instance = \\$responseClass::createFromResponse(\$response, \$this);
+${indent}\$instance = \\$responseClass::createFromResponse(\$response, \$this);
 
-return \$instance;
+${indent}return \$instance;
 END;
         }
         else if ($responseClass) {
             //Response is turned into $responseClass by a static method on that class
             $body .= <<< END
-\$instance = \\$responseClass::createFromResponse(\$response, \$this);
+${indent}\$instance = \\$responseClass::createFromResponse(\$response, \$this);
 
-return \$instance;
+${indent}return \$instance;
 END;
         }
         else {
             //TODO - should this be like this or just return $response?
             //No hydrating of data done.
-            $body .= 'return $response->getBody();';
+            $body .= $indent.'return $response->getBody();';
         }
         
         return $body;
     }
 
     /**
-     * Generate the docblock generator for methods that return a hydrated object
+     * Generate a docblock generator for the execute method
      * @return DocBlockGenerator
      */
     private function generateExecuteDocBlock($methodDescription) {
@@ -580,10 +575,9 @@ END;
     
     
     /**
-     * 
+     * Add the execute method to the operation
      */
     function addExecuteMethod() {
-        
         $body  = $this->generateCreateFragment();
         $body .= 'return $this->dispatch($request);';
         $docBlock = $this->generateExecuteDocBlock('Execute the operation, returning the parsed response');
@@ -595,7 +589,7 @@ END;
     }
 
     /**
-     * 
+     * Add the async execute method to the operation
      */
     function addExecuteAsyncMethod() {
         $body  = $this->generateCreateFragment();
@@ -613,6 +607,7 @@ END;
 
 
     /**
+     * Generate the code required to filter a parameter of the operation.
      * @param Parameter $parameter
      * @return string
      * @throws APIBuilderException
@@ -674,6 +669,7 @@ END;
     }
 
     /**
+     * Add a method to get a parameter of this operation after it has been filtered.
      * @throws APIBuilderException
      */
     function addFilteredParameterMethod() {
@@ -729,21 +725,50 @@ END;
     
     
     /**
-     * 
+     * Add the method to create the request and execute it in one step
      */
-    function addCreateAndCallMethod() {
-        $methodGenerator = new MethodGenerator('createAndCall');
+    function addCreateAndExecuteMethod() {
+        $methodGenerator = new MethodGenerator('createAndExecute');
         $body = '';
         $body .= $this->generateCreateFragment();
-        $body .= $this->generateCallFragment();
+        $body .= $this->generateExecuteFragment();
         $body .= PHP_EOL;
         $body .= 'return $response;'.PHP_EOL;;
-        $docBlock = new DocBlockGenerator('Create and call the operation, returning the raw response from the server.', null);
+        $docBlock = new DocBlockGenerator('Create and execute the operation, returning the raw response from the server.', null);
         $tags[] = new GenericTag('return', '\Artax\Response');
         $docBlock->setTags($tags);
         
         $methodGenerator->setBody($body);
-        //$docBlock = $this->generateExecuteDocBlock('Execute the operation');
+        $methodGenerator->setDocBlock($docBlock);
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
+
+
+    /**
+     * Add the method that, creates the request, executes it, and processes the response
+     * in one step. The method returns mixed rather than the opeartions response type,
+     * as the api call may succeed, but not return data e.g. for HTTP 201 and 202 responses.
+     */
+    function addCallMethod() {
+        $methodGenerator = new MethodGenerator('call');
+        $body = '';
+        $body .= $this->generateCreateFragment();
+        $body .= $this->generateExecuteFragment().PHP_EOL;
+
+        $responseClass = $this->operationDefinition->getResponseClass();
+
+        $body .= 'if ($this->shouldResponseBeProcessed($response)) {'.PHP_EOL;
+        $body .= $this->generateResponseFragment('    ');
+        $body .= PHP_EOL.'}'.PHP_EOL;
+        $body .= 'return $response;';
+        
+        $docBlock = new DocBlockGenerator('Create and execute the operation, then return the processed  response.', null);
+        //The response will either be the response class, or mixed if the remote api returned
+        //a response that does not contain data e.g. HTTP 201, HTTP 202
+        $tags[] = new GenericTag('return', 'mixed|\\'.$responseClass);
+        $docBlock->setTags($tags);
+
+        $methodGenerator->setBody($body);
         $methodGenerator->setDocBlock($docBlock);
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
@@ -751,13 +776,13 @@ END;
     
     
     /**
-     *
+     * Add a method to execute and parse the response of a previously created request.
      */
     function addDispatchMethod() {
         $methodGenerator = new MethodGenerator('dispatch');
 
         $body = '';
-        $body .= $this->generateCallFragment();
+        $body .= $this->generateExecuteFragment();
         $body .= $this->generateResponseFragment();
 
         $docBlock = $this->generateExecuteDocBlock('Dispatch the request for this operation and process the response. Allows you to modify the request before it is sent.');
@@ -776,7 +801,7 @@ END;
 
 
     /**
-     * 
+     * Add a method to asynchronousl execute and parse the response of a previously created request.
      */
     function addDispatchAsyncMethod() {
         $methodGenerator = new MethodGenerator('dispatchAsync');
@@ -802,7 +827,8 @@ END;
     
 
     /**
-     * 
+     * Add a method that process the response from the raw body, to the final type of 
+     * the opeartion.
      */
     function addProcessResponseMethod() {
 
@@ -826,6 +852,76 @@ END;
     }
 
     /**
+     * Helper method for generating trivial methods.
+     * @param $methodName
+     * @param $body
+     * @param $docBlock
+     * @param $parameterInfoArray
+     * @return MethodGenerator
+     */
+    private function createMethodGenerator($methodName, $body, $docBlock, $parameterInfoArray) {
+        $parameters = [];
+        foreach ($parameterInfoArray as $parameterInfo) {
+            $parameters[] = new ParameterGenerator($parameterInfo[0], $parameterInfo[1]);
+        }
+
+        $methodGenerator = new MethodGenerator($methodName);
+        $methodGenerator->setParameters($parameters);
+        $methodGenerator->setDocBlock($docBlock);
+        $methodGenerator->setBody($body);
+        
+        return $methodGenerator;
+    }
+
+
+    
+    /**
+     * Add a method to determine whether the response is an error or not.
+     * By default it delegates that decision to the main api class - override this method
+     * to have a per operation decision.
+     */
+    function addIsErrorResponseMethod() {
+        $body = 'return $this->api->isErrorResponse($response);';
+        $docBlock = $this->generateExecuteDocBlock('Determine whether the response is an error. Override this method to have a per-operation decision, otherwise the function is the API class will be used.');
+
+        $methodGenerator = $this->createMethodGenerator(
+            'isErrorResponse', 
+            $body,
+            $docBlock,
+            [['response', 'Artax\Response']]
+        );
+
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
+
+
+    /**
+     * Add a method to determine whether the response should be processed into a hydrated
+     * response class. By default it delegates that decision to the main api class - override this method
+     * to have a per operation decision.
+     */
+    public function addShouldResponseBeProcessedMethod() {
+        $body = 'return $this->api->shouldResponseBeProcessed($response);';
+
+
+        $docBlock = $this->generateExecuteDocBlock('Determine whether the response should be processed. Override this method to have a per-operation decision, otherwise the function is the API class will be used.');
+
+        $methodGenerator = $this->createMethodGenerator(
+            'shouldResponseBeProcessed',
+            $body,
+            $docBlock,
+            [['response', 'Artax\Response']]
+        );
+
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
+
+
+
+
+
+    /**
+     * Generate the complete operation class and save it to the filesystem.
      * @throws \ArtaxServiceBuilder\APIBuilderException
      */
     function generate() {
@@ -844,14 +940,17 @@ END;
         $this->addCheckScopeMethod();
         $this->addAccessorMethods();
         $this->addFilteredParameterMethod();
-        $this->addOptionalParamMethods();
         $this->addCreateRequestMethod();
-        $this->addCreateAndCallMethod();
+        $this->addCreateAndExecuteMethod();
+        $this->addCallMethod();
+        
         $this->addExecuteMethod();
         $this->addExecuteAsyncMethod();
         $this->addDispatchMethod();
         $this->addDispatchAsyncMethod();
         $this->addProcessResponseMethod();
+        $this->addIsErrorResponseMethod();
+        $this->addShouldResponseBeProcessedMethod();
 
         $this->classGenerator->setImplementedInterfaces(['ArtaxServiceBuilder\Operation']);
         $this->classGenerator->setFQCN($fqcn);

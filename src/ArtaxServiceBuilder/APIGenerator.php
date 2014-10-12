@@ -283,7 +283,7 @@ class APIGenerator {
     function addExecMethod() {
         $methodGenerator = new MethodGenerator('execute');
         $requestParam = new ParameterGenerator('request', 'Artax\Request');
-        $successStatusParam = new ParameterGenerator('successStatuses', 'array', []);
+        $successStatusParam = new ParameterGenerator('operation', 'ArtaxServiceBuilder\Operation');
         $methodGenerator->setParameters([$requestParam, $successStatusParam]);
         $methodGenerator->setBody($this->getExecuteBody());
 
@@ -294,7 +294,7 @@ class APIGenerator {
         );
         $tags[] = new GenericTag(
             'param',
-            '$successStatuses array A list of acceptable success statuses.'
+            '$operation \ArtaxServiceBuilder\Operation The response that is called the execute.'
         );
         $tags[] = new GenericTag(
             'return',
@@ -330,11 +330,13 @@ $promise = $this->client->request($request);
 $promise->when(function(\Exception $error = null, Response $response = null) use ($originalRequest, $callback, $operation) {
 
     if($error) {
-        $callback($error, null);
+        $callback($error, null, null);
         return;
     }
 
     $status = $response->getStatus();
+    
+    $isErrorResponse = $operation->isErrorResponse($response);
         
     if ($status == 200) {
         $this->responseCache->storeResponse($originalRequest, $response);
@@ -342,23 +344,28 @@ $promise->when(function(\Exception $error = null, Response $response = null) use
     else if ($status == 304) {
         $response = $this->responseCache->getResponse($originalRequest);
     }
-    else if ($status < 200 || $status >= 300 ) {
+    else if ($isErrorResponse) {
         $exception = new BadResponseException(
             "Status $status is not treated as OK.",
             $originalRequest,
             $response
         );
-        $callback($exception, null);
+        $callback($exception, null, $response);
         return;
     }
 
-    try {
-        $parsedResponse = $operation->processResponse($response);
-        $callback(null, $parsedResponse);
+    if ($operation->shouldResponseBeProcessed($response)) {
+        try {
+            $parsedResponse = $operation->processResponse($response);
+            $callback(null, $parsedResponse, $response);
+        }
+        catch(\Exception $e) {
+            $exception = new \Exception("Exception parsing response: ".$e->getMessage(), 0, $e);
+            $callback($exception, null, $response);
+        }
     }
-    catch(\Exception $e) {
-        $exception = new \Exception("Exception parsing response: ".$e->getMessage(), 0, $e);
-        $callback($exception, "Error parsing response", null);
+    else {
+        $callback(null, null, $response);
     }
 });
 
@@ -458,13 +465,15 @@ $response = $promise->wait();
 $status = $response->getStatus();
 $status = intval($status);
         
+$isErrorResponse = $operation->isErrorResponse($response);
+        
 if ($status == 200) {
     $this->responseCache->storeResponse($originalRequest, $response);
 }
 else if ($status == 304) {
     $response = $this->responseCache->getResponse($request);
 }
-else if ($status < 200 || $status >= 300 ) {
+else if ($isErrorResponse) {
     throw new BadResponseException(
         "Status $status is not treated as OK.",
         $originalRequest,
@@ -786,7 +795,74 @@ END;
     public function addAPIParameter($name, $type = null) {
         $this->apiParameters[$name] = $type;
     }
+
+    private function createMethodGenerator($methodName, $body, $docBlock, $parameterInfoArray) {
+        $parameters = [];
+        foreach ($parameterInfoArray as $parameterInfo) {
+            $parameters[] = new ParameterGenerator($parameterInfo[0], $parameterInfo[1]);
+        }
+
+        $methodGenerator = new MethodGenerator($methodName);
+        $methodGenerator->setParameters($parameters);
+        $methodGenerator->setDocBlock($docBlock);
+        $methodGenerator->setBody($body);
+
+        return $methodGenerator;
+    }
+
+
+    /**
+     * Generate the docblock generator
+     * @return DocBlockGenerator
+     */
+    private function generateExecuteDocBlock($methodDescription, $returnType) {
+        $docBlock = new DocBlockGenerator($methodDescription, null);
+        $tags[] = new GenericTag('return', $returnType);
+        $docBlock->setTags($tags);
+
+        return $docBlock;
+    }
+
     
+    function addShouldResponseBeProcessedMethod() {
+        $body = 'return true;';
+        $docBlock = $this->generateExecuteDocBlock('Determine whether the response should be processed.', 'boolean');
+
+        $methodGenerator = $this->createMethodGenerator(
+            'shouldResponseBeProcessed',
+            $body,
+            $docBlock,
+            [['response', 'Artax\Response']]
+        );
+
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
+
+    /**
+     * 
+     */
+    function addIsErrorResponseMethod() {
+        $body = <<< 'END'
+ 
+$status = $response->getStatus();
+if ($status < 200 || $status >= 300 ) {
+    return true;
+}
+
+return false;
+END;
+
+        $docBlock = $this->generateExecuteDocBlock('Determine whether the response should be processed.', 'boolean');
+
+        $methodGenerator = $this->createMethodGenerator(
+            'isErrorResponse',
+            $body,
+            $docBlock,
+            [['response', 'Artax\Response']]
+        );
+
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
 
     /**
      * Allows you to use your preference for formatting of variables in the API library
@@ -930,66 +1006,6 @@ END;
         $this->classGenerator->addUse($fqcn);
     }
 
-
-    /**
-     * 
-     */
-    function addSyncRequestMethod() {
-        $methodGenerator = new MethodGenerator('request');
-        $methodGenerator->addFlag(AbstractMemberGenerator::FLAG_PRIVATE);
-        
-$body = <<< 'END'
-
-$client = new \Artax\Client();
-
-return $client->request($request);
-//The below should work - but doesn't
-//
-//
-//$response = null;
-//$exception = null;
-//
-//$onError = function(\Exception $exceptionResult) use(&$exception) { $exception = $exceptionResult; };
-//$onResponse = function(Response $responseResult) use (&$response)  { $response = $responseResult; };
-//
-//$reactor = (new ReactorFactory)->select();
-//
-//$reactor->immediately(function() use ($onResponse, $onError, $request) {
-//        $this->client->request($request, $onResponse, $onError);
-//    });
-//
-//while (!($response || $exception)) {
-//    $reactor->tick();
-//}
-//
-//if ($response) {
-//    return $response;
-//}
-//
-//if ($exception) {
-//    /** @var $exception \Exception */
-//    throw $exception;
-//}
-//
-//throw new \LogicException("Neither response nor exception were set.");
-
-END;
-
-        $methodGenerator->setBody($body);
-
-        $docBlock = new DocBlockGenerator('Get the last response.');
-
-        $tags[] = new ParamTag('request', ['\Artax\Request']);
-        $tags[] = new GenericTag('return', '\Artax\Response');
-        $tags[] = new ThrowsTag(['\Exception']);
-        $docBlock->setTags($tags);
-        $methodGenerator->setDocBlock($docBlock);
-
-        $parameter = new ParameterGenerator('request', 'Artax\Request');
-        $methodGenerator->setParameter($parameter);
-        $this->classGenerator->addMethodFromGenerator($methodGenerator);
-    }
-    
     /**
      *
      */
@@ -998,7 +1014,6 @@ END;
         $this->addProperties([]);
         $this->addConstructorMethod();
         $this->addSignMethod();
-        
         $this->generateMethods();
         $this->addAPIParameterAccessMethod();
 
@@ -1008,10 +1023,11 @@ END;
         
         $this->classGenerator->addUse('ArtaxServiceBuilder\ResponseCache');
 
-        //$this->addSyncRequestMethod();
         $this->generateExceptionClass();
         $this->addExecMethod();
         $this->addExecAsyncMethod();
+        $this->addShouldResponseBeProcessedMethod();
+        $this->addIsErrorResponseMethod();
         $text = $this->classGenerator->generate();
         saveFile($this->outputPath, $this->fqcn, $text);
     }

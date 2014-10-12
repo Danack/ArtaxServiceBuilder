@@ -18,5 +18,9 @@ interface Operation {
      * @return mixed
      */
     public function processResponse(\Artax\Response $response);
+
+    public function isErrorResponse(\Artax\Response $response);
+
+    public function shouldResponseBeProcessed(\Artax\Response $response);
     
 } 
