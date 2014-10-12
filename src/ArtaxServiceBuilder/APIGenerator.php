@@ -298,7 +298,7 @@ class APIGenerator {
         );
         $tags[] = new GenericTag(
             'return',
-            '\Artax\Response  The response from Artax'
+            '\Artax\Response The response from Artax'
         );
 
         $docBlockGenerator = new DocBlockGenerator('execute');
@@ -329,12 +329,15 @@ $request->setAllHeaders($cachingHeaders);
 $promise = $this->client->request($request);
 $promise->when(function(\Exception $error = null, Response $response = null) use ($originalRequest, $callback, $operation) {
 
+    $operation->setResponse($response);
+
     if($error) {
         $callback($error, null, null);
         return;
     }
 
     $status = $response->getStatus();
+    $body .= '$this->response = $response;'.PHP_EOL;
     
     $isErrorResponse = $operation->isErrorResponse($response);
         

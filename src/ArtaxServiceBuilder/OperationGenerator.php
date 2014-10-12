@@ -102,6 +102,8 @@ class OperationGenerator {
         $requiredProperties = [
             'api' => '\\'.$this->apiClassname,
             'parameters' => 'array',
+            'response' => '\Artax\Response'
+
         ];
 
         //TODO - deal with clashes between this and bits of the actual api
@@ -111,6 +113,21 @@ class OperationGenerator {
             $propertyGenerator->setDocBlock($docBlock);
             $this->classGenerator->addPropertyFromGenerator($propertyGenerator);
         }
+
+        //We have to allow access to the last response for crappy APIs
+        //that return information in the response headers.
+        $docBlock = new DocBlockGenerator('Get the last response.');
+        $body = 'return $this->response;';
+
+        $methodGenerator = $this->createMethodGenerator('getResponse', $body, $docBlock, [], '\Artax\Response');
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+
+        $docBlock = new DocBlockGenerator('Set the last response. This should only be used by the API class when the operation has been dispatched. Storing the response is required as some APIs store out-of-bound information in the headers e.g. rate-limit info, pagination that is not really part of the operation.');
+        $body = '$this->response = $response;';
+
+        $methodGenerator = $this->createMethodGenerator('setResponse', $body, $docBlock, [['response', 'Artax\Response']]);
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+        
     }
 
     /**
@@ -513,6 +530,7 @@ END;
         }
 
         $body .= '$response = $this->api->execute($request, $this);'.PHP_EOL;
+        $body .= '$this->response = $response;'.PHP_EOL;
 
         return $body; 
     }
@@ -859,7 +877,7 @@ END;
      * @param $parameterInfoArray
      * @return MethodGenerator
      */
-    private function createMethodGenerator($methodName, $body, $docBlock, $parameterInfoArray) {
+    private function createMethodGenerator($methodName, $body, DocBlockGenerator $docBlock, $parameterInfoArray, $returnType = null) {
         $parameters = [];
         foreach ($parameterInfoArray as $parameterInfo) {
             $parameters[] = new ParameterGenerator($parameterInfo[0], $parameterInfo[1]);
@@ -867,6 +885,13 @@ END;
 
         $methodGenerator = new MethodGenerator($methodName);
         $methodGenerator->setParameters($parameters);
+        
+        iF ($returnType != null) {
+            $tags[] = new GenericTag('return', '\Artax\Response');
+            $docBlock->setTags($tags);
+
+        }
+        
         $methodGenerator->setDocBlock($docBlock);
         $methodGenerator->setBody($body);
         
