@@ -102,7 +102,7 @@ class OperationGenerator {
         $requiredProperties = [
             'api' => '\\'.$this->apiClassname,
             'parameters' => 'array',
-            'response' => '\Artax\Response'
+            'response' => '\Amp\Artax\Response'
 
         ];
 
@@ -119,13 +119,13 @@ class OperationGenerator {
         $docBlock = new DocBlockGenerator('Get the last response.');
         $body = 'return $this->response;';
 
-        $methodGenerator = $this->createMethodGenerator('getResponse', $body, $docBlock, [], '\Artax\Response');
+        $methodGenerator = $this->createMethodGenerator('getResponse', $body, $docBlock, [], '\Amp\Artax\Response');
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
 
         $docBlock = new DocBlockGenerator('Set the last response. This should only be used by the API class when the operation has been dispatched. Storing the response is required as some APIs store out-of-bound information in the headers e.g. rate-limit info, pagination that is not really part of the operation.');
         $body = '$this->response = $response;';
 
-        $methodGenerator = $this->createMethodGenerator('setResponse', $body, $docBlock, [['response', 'Artax\Response']]);
+        $methodGenerator = $this->createMethodGenerator('setResponse', $body, $docBlock, [['response', 'Amp\Artax\Response']]);
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
         
     }
@@ -280,13 +280,13 @@ END;
     }
 
     /**
-     * Generate the method that creates an Artax\Request from the operation.
+     * Generate the method that creates an Ammp\Artax\Request from the operation.
      * 
      * TODO - refactor this into chunks when it's a bit more stable
      * TODO - use \Artax\Uri
      */
     function addCreateRequestMethod() {
-        $body = '$request = new \Artax\Request();'.PHP_EOL;
+        $body = '$request = new \Amp\Artax\Request();'.PHP_EOL;
         $url = $this->operationDefinition->getURL();
         $body .= '$url = null;'.PHP_EOL;
         $body .= sprintf('$request->setMethod(\'%s\');'.PHP_EOL, $this->operationDefinition->getHttpMethod());
@@ -439,10 +439,10 @@ END;
         $body .= 'return $request;'.PHP_EOL;
 
 
-        $tags[] = new GenericTag('return', '\Artax\Request');
+        $tags[] = new GenericTag('return', '\Amp\Artax\Request');
 
         $docBlock = new DocBlockGenerator(
-            'Create an Artax\Request object from the operation.',
+            'Create an Amp\Artax\Request object from the operation.',
             null,
             $tags
         );
@@ -753,7 +753,7 @@ END;
         $body .= PHP_EOL;
         $body .= 'return $response;'.PHP_EOL;;
         $docBlock = new DocBlockGenerator('Create and execute the operation, returning the raw response from the server.', null);
-        $tags[] = new GenericTag('return', '\Artax\Response');
+        $tags[] = new GenericTag('return', '\Amp\Artax\Response');
         $docBlock->setTags($tags);
         
         $methodGenerator->setBody($body);
@@ -805,7 +805,7 @@ END;
 
         $docBlock = $this->generateExecuteDocBlock('Dispatch the request for this operation and process the response. Allows you to modify the request before it is sent.');
 
-        $parameter = new ParameterGenerator('request', 'Artax\Request');
+        $parameter = new ParameterGenerator('request', 'Amp\Artax\Request');
         $methodGenerator->setParameter($parameter);
 
         $tag = createParamTag($parameter, 'The request to be processed');
@@ -827,7 +827,7 @@ END;
 
         $docBlock = $this->generateExecuteDocBlock('Dispatch the request for this operation and process the response asynchronously. Allows you to modify the request before it is sent.');
 
-        $requestParameter = new ParameterGenerator('request', 'Artax\Request');
+        $requestParameter = new ParameterGenerator('request', 'Amp\Artax\Request');
         $methodGenerator->setParameter($requestParameter);
         $tag = createParamTag($requestParameter, 'The request to be processed');
         $docBlock->setTag($tag);
@@ -861,7 +861,7 @@ END;
         $methodGenerator->setBody($body);
 
         $parameters = [];
-        $parameters[] = new ParameterGenerator('response', 'Artax\Response');
+        $parameters[] = new ParameterGenerator('response', 'Amp\Artax\Response');
         $methodGenerator->setParameters($parameters);
         $tag = createParamTag($parameters[0], 'The HTTP response.');
         $docBlock->setTag($tag);
@@ -886,10 +886,13 @@ END;
         $methodGenerator = new MethodGenerator($methodName);
         $methodGenerator->setParameters($parameters);
         
-        iF ($returnType != null) {
-            $tags[] = new GenericTag('return', '\Artax\Response');
+        if ($returnType != null) {
+            if (is_array($returnType)) {
+                $returnType = implode('|', $returnType);
+            }
+            
+            $tags[] = new GenericTag('return', $returnType);
             $docBlock->setTags($tags);
-
         }
         
         $methodGenerator->setDocBlock($docBlock);
@@ -913,7 +916,7 @@ END;
             'isErrorResponse', 
             $body,
             $docBlock,
-            [['response', 'Artax\Response']]
+            [['response', 'Amp\Artax\Response']]
         );
 
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
@@ -928,22 +931,76 @@ END;
     public function addShouldResponseBeProcessedMethod() {
         $body = 'return $this->api->shouldResponseBeProcessed($response);';
 
-
         $docBlock = $this->generateExecuteDocBlock('Determine whether the response should be processed. Override this method to have a per-operation decision, otherwise the function is the API class will be used.');
 
         $methodGenerator = $this->createMethodGenerator(
             'shouldResponseBeProcessed',
             $body,
             $docBlock,
-            [['response', 'Artax\Response']]
+            [['response', 'Amp\Artax\Response']]
         );
 
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
 
 
+    /**
+     * 
+     */
+    public function addShouldUseCachedResponseMethod() {
+        $body = 'return $this->api->shouldUseCachedResponse($response);';
+
+        $docBlock = $this->generateExecuteDocBlock('Determine whether the response indicates that we should use a cached response. Override this method to have a per-operation decision, otherwise the functionfrom the API class will be used.');
+
+        $methodGenerator = $this->createMethodGenerator(
+            'shouldUseCachedResponse',
+            $body,
+            $docBlock,
+            [['response', 'Amp\Artax\Response']]
+        );
+
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
 
 
+    /**
+     *
+     */
+    public function addShouldResponseBeCachedMethod() {
+        $body = 'return $this->api->shouldResponseBeCached($response);';
+
+        $docBlock = $this->generateExecuteDocBlock('Determine whether the response should be cached. Override this method to have a per-operation decision, otherwise the function from the API class will be used.');
+
+        $methodGenerator = $this->createMethodGenerator(
+            'shouldResponseBeCached',
+            $body,
+            $docBlock,
+            [['response', 'Amp\Artax\Response']]
+        );
+
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }    
+
+    /**
+     * Add a method to determine whether the response should be processed into a hydrated
+     * response class. By default it delegates that decision to the main api class - override this method
+     * to have a per operation decision.
+     */
+    public function addTranslateResponseToExceptionMethod() {
+        $body = 'return $this->api->translateResponseToException($response);';
+
+        $docBlock = new DocBlockGenerator('Determine whether the response is an error. Override this method to have a per-operation decision, otherwise the function from the API class will be used.', null);
+
+        $methodGenerator = $this->createMethodGenerator(
+            'translateResponseToException',
+            $body,
+            $docBlock,
+            [['response', 'Amp\Artax\Response']],
+            ['null', '\ArtaxServiceBuilder\BadResponseException']
+        );
+
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
 
     /**
      * Generate the complete operation class and save it to the filesystem.
@@ -974,8 +1031,12 @@ END;
         $this->addDispatchMethod();
         $this->addDispatchAsyncMethod();
         $this->addProcessResponseMethod();
-        $this->addIsErrorResponseMethod();
+        //$this->addIsErrorResponseMethod();
         $this->addShouldResponseBeProcessedMethod();
+        $this->addTranslateResponseToExceptionMethod();
+        $this->addShouldUseCachedResponseMethod();
+        $this->addShouldResponseBeCachedMethod();
+        
 
         $this->classGenerator->setImplementedInterfaces(['ArtaxServiceBuilder\Operation']);
         $this->classGenerator->setFQCN($fqcn);

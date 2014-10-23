@@ -244,8 +244,8 @@ class APIGenerator {
             $body = '';
             $params = [];
 
-            //Every API needs the Artax\Client object to send requests
-            $param = new ParameterGenerator('client', 'Artax\Client', null);
+            //Every API needs the Amp\Artax\Client object to send requests
+            $param = new ParameterGenerator('client', 'Amp\Artax\Client', null);
             $params[] = $param;
             $body .= '$this->client = $client;'.PHP_EOL;
 
@@ -282,7 +282,7 @@ class APIGenerator {
      */
     function addExecMethod() {
         $methodGenerator = new MethodGenerator('execute');
-        $requestParam = new ParameterGenerator('request', 'Artax\Request');
+        $requestParam = new ParameterGenerator('request', 'Amp\Artax\Request');
         $successStatusParam = new ParameterGenerator('operation', 'ArtaxServiceBuilder\Operation');
         $methodGenerator->setParameters([$requestParam, $successStatusParam]);
         $methodGenerator->setBody($this->getExecuteBody());
@@ -290,7 +290,7 @@ class APIGenerator {
         $tags = [];
         $tags[] = new GenericTag(
             'param',
-            '$request \Artax\Request The request to send.'
+            '$request \Amp\Artax\Request The request to send.'
         );
         $tags[] = new GenericTag(
             'param',
@@ -298,7 +298,7 @@ class APIGenerator {
         );
         $tags[] = new GenericTag(
             'return',
-            '\Artax\Response The response from Artax'
+            '\Amp\Artax\Response The response from Artax'
         );
 
         $docBlockGenerator = new DocBlockGenerator('execute');
@@ -315,7 +315,7 @@ class APIGenerator {
      */
     function addExecAsyncMethod() {
         $methodGenerator = new MethodGenerator('executeAsync');
-        $requestParam = new ParameterGenerator('request', 'Artax\Request');
+        $requestParam = new ParameterGenerator('request', 'Amp\Artax\Request');
         $operationParam = new ParameterGenerator('operation', 'ArtaxServiceBuilder\Operation');
         $callableParam = new ParameterGenerator('callback', 'callable');
 
@@ -336,24 +336,20 @@ $promise->when(function(\Exception $error = null, Response $response = null) use
         return;
     }
 
-    $status = $response->getStatus();
-    $body .= '$this->response = $response;'.PHP_EOL;
-    
-    $isErrorResponse = $operation->isErrorResponse($response);
-        
-    if ($status == 200) {
+    if ($operation->shouldResponseBeCached($originalRequest, $response)) {
         $this->responseCache->storeResponse($originalRequest, $response);
     }
-    else if ($status == 304) {
-        $response = $this->responseCache->getResponse($originalRequest);
+
+    if ($operation->shouldUseCachedResponse($originalRequest, $response)) {
+        $cachedResponse = $this->responseCache->getResponse($originalRequest);
+        if ($cachedResponse) {
+            $response = $cachedResponse; 
+        }
     }
-    else if ($isErrorResponse) {
-        $exception = new BadResponseException(
-            "Status $status is not treated as OK.",
-            $originalRequest,
-            $response
-        );
-        $callback($exception, null, $response);
+
+    $responseException = $operation->translateResponseToException($originalRequest, $response);
+    if ($responseException) {
+        $callback($responseException, null, $response);
         return;
     }
 
@@ -390,7 +386,7 @@ END;
 
         $tags[] = new GenericTag(
             'return',
-            '\After\Promise A promise to resolve the call at some time.'
+            '\Amp\Promise A promise to resolve the call at some time.'
         );
         
         $docBlockGenerator = new DocBlockGenerator('executeAsync');
@@ -410,7 +406,7 @@ END;
         }
 
         $methodGenerator = new MethodGenerator('signRequest');
-        $requestParam = new ParameterGenerator('request', 'Artax\Request');
+        $requestParam = new ParameterGenerator('request', 'Amp\Artax\Request');
         $methodGenerator->setParameters([$requestParam]);
         
         $body = 'if ($this->oauthService == null) {'.PHP_EOL;;
@@ -441,7 +437,7 @@ END;
 
         $body = <<< 'END'
 
-$request = new \Artax\Request();
+$request = new \Amp\Artax\Request();
 $fullURL = $url.'?'.http_build_query($parameters, '', '&', PHP_QUERY_RFC3986);
 $request->setUri($fullURL);
 
@@ -464,24 +460,24 @@ $cachingHeaders = $this->responseCache->getCachingHeaders($request);
 $request->setAllHeaders($cachingHeaders);
 $promise = $this->client->request($request);
 $response = $promise->wait();
-/** @var $response \Artax\Response */
-$status = $response->getStatus();
-$status = intval($status);
-        
-$isErrorResponse = $operation->isErrorResponse($response);
-        
-if ($status == 200) {
+
+if ($operation->shouldResponseBeCached($response)) {
     $this->responseCache->storeResponse($originalRequest, $response);
 }
-else if ($status == 304) {
-    $response = $this->responseCache->getResponse($request);
+
+if ($operation->shouldUseCachedResponse($response)) {
+    $cachedResponse = $this->responseCache->getResponse($originalRequest);
+    if ($cachedResponse) {
+        $response = $cachedResponse; 
+    }
+    //@TODO This code should only be reached if the cache entry was deleted
+    //so throw an exception? Or just leave the 304 to error?
 }
-else if ($isErrorResponse) {
-    throw new BadResponseException(
-        "Status $status is not treated as OK.",
-        $originalRequest,
-        $response
-    );
+
+$exception = $operation->translateResponseToException($response);
+
+if ($exception) {
+    throw $exception;
 }
 
 return $response;
@@ -635,7 +631,7 @@ END;
         $operationGenerator->setAPIClassname($this->fqcn);
         $operationGenerator->generate();
         $this->addUseStatement($operationGenerator->getFQCN());
-        $this->addUseStatement('Artax\Response');
+        $this->addUseStatement('Amp\Artax\Response');
         //$this->addUseStatement('ArtaxServiceBuilder\ArtaxServiceException');
         $this->addUseStatement('ArtaxServiceBuilder\BadResponseException');
 
@@ -688,12 +684,12 @@ $classText = <<< END
 
 namespace $namespace;
 
-use Artax\Response;
+use Amp\Artax\Response;
 
 class $exceptionClassname extends \Exception {
 
     /**
-     * @var \Artax\Response
+     * @var \Amp\Artax\Response
      */
     private \$response;
     
@@ -835,7 +831,62 @@ END;
             'shouldResponseBeProcessed',
             $body,
             $docBlock,
-            [['response', 'Artax\Response']]
+            [['response', 'Amp\Artax\Response']]
+        );
+
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
+
+
+    /**
+     * 
+     */
+    function addShouldResponseBeCachedMethod() {
+
+        $body = <<< 'END'
+$status = $response->getStatus();
+if ($status == 200) {
+    return true;
+}
+
+return false;
+END;
+
+        $docBlock = $this->generateExecuteDocBlock('Determine whether the response should be cached.', 'boolean');
+
+        $methodGenerator = $this->createMethodGenerator(
+            'shouldResponseBeCached',
+            $body,
+            $docBlock,
+            [['response', 'Amp\Artax\Response']]
+        );
+
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
+
+
+
+    /**
+     *
+     */
+    function addShouldUseCachedResponseMethod() {
+
+        $body = <<< 'END'
+$status = $response->getStatus();
+if ($status == 304) {
+    return true;
+}
+
+return false;
+END;
+
+        $docBlock = $this->generateExecuteDocBlock('Determine whether the cached response should be used.', 'boolean');
+
+        $methodGenerator = $this->createMethodGenerator(
+            'shouldUseCachedResponse',
+            $body,
+            $docBlock,
+            [['response', 'Amp\Artax\Response']]
         );
 
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
@@ -861,7 +912,37 @@ END;
             'isErrorResponse',
             $body,
             $docBlock,
-            [['response', 'Artax\Response']]
+            [['response', 'Amp\Artax\Response']]
+        );
+
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
+
+
+    /**
+     *
+     */
+    function addtranslateResponseToExceptionMethod() {
+        $body = <<< 'END'
+$status = $response->getStatus();
+if ($status < 200 || $status >= 300) {
+    return new BadResponseException(
+        "Status $status is not treated as OK.",
+        $response
+    );
+}
+
+return null;
+END;
+
+        $docBlock = $this->generateExecuteDocBlock('Inspect the response and return an exception if it is an error response.
+     * Exceptions should extend \ArtaxServiceBuilder\BadResponseException', 'BadResponseException');
+
+        $methodGenerator = $this->createMethodGenerator(
+            'translateResponseToException',
+            $body,
+            $docBlock,
+            [['response', 'Amp\Artax\Response']]
         );
 
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
@@ -1012,7 +1093,11 @@ END;
     /**
      *
      */
-    function generate() {        
+    function generate() {
+
+        $this->classGenerator->addUse('Amp\Artax\Request');
+        $this->classGenerator->addUse('Amp\Artax\Response');
+        
         $this->sanityCheck();
         $this->addProperties([]);
         $this->addConstructorMethod();
@@ -1030,7 +1115,12 @@ END;
         $this->addExecMethod();
         $this->addExecAsyncMethod();
         $this->addShouldResponseBeProcessedMethod();
-        $this->addIsErrorResponseMethod();
+        $this->addShouldResponseBeCachedMethod();
+        $this->addShouldUseCachedResponseMethod();
+        
+        
+        //$this->addIsErrorResponseMethod();
+        $this->addtranslateResponseToExceptionMethod();
         $text = $this->classGenerator->generate();
         saveFile($this->outputPath, $this->fqcn, $text);
     }
