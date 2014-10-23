@@ -3,8 +3,8 @@
 
 namespace ArtaxServiceBuilder\ResponseCache;
 
-use Artax\Request;
-use Artax\Response;
+use Amp\Artax\Request;
+use Amp\Artax\Response;
 use ArtaxServiceBuilder\ResponseCache;
 
 class FileResponseCache implements ResponseCache {
@@ -66,7 +66,7 @@ class FileResponseCache implements ResponseCache {
         $cachedResponse = $this->getCachedResponse($cacheFilename);
 
         if ($cachedResponse != null) {
-            /** @var $cachedResponse \Artax\Response */
+            /** @var $cachedResponse \Amp\Artax\Response */
             if ($cachedResponse->hasHeader('ETag')) {
                 $etagValues = $cachedResponse->getHeader('ETag');
                 foreach ($etagValues as $value) {
@@ -94,7 +94,7 @@ class FileResponseCache implements ResponseCache {
      * Returns an array caching HTTP headers that should be set for this request e.g.
      * ['If-None-Match' => $matchValue, 'If-Modified-Since' => $modifiedValue]
      * @param Request $request
-     * @return \Artax\Response
+     * @return \Amp\Artax\Response
      */
     public function getResponse(Request $request) {
         $cacheFilename = $this->calculateRequestFilename($request);

@@ -3,7 +3,7 @@
 
 namespace ArtaxServiceBuilder\Service;
 
-use Artax\Response;
+use Amp\Artax\Response;
 use ArtaxServiceBuilder\Service\Link;
 
 /**

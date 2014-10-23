@@ -3,8 +3,8 @@
 
 namespace ArtaxServiceBuilder;
 
-use Artax\Request;
-use Artax\Response;
+use Amp\Artax\Request;
+use Amp\Artax\Response;
 
 interface ResponseCache {
 
@@ -18,7 +18,7 @@ interface ResponseCache {
      * Returns an array caching HTTP headers that should be set for this request e.g.
      * ['If-None-Match' => $matchValue, 'If-Modified-Since' => $modifiedValue]
      * @param Request $request
-     * @return \Artax\Response
+     * @return \Amp\Artax\Response
      */
     public function getResponse(Request $request);
 

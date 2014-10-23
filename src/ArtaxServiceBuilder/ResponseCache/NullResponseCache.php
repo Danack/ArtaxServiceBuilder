@@ -2,8 +2,8 @@
 
 namespace ArtaxServiceBuilder\ResponseCache;
 
-use Artax\Request;
-use Artax\Response;
+use Amp\Artax\Request;
+use Amp\Artax\Response;
 use ArtaxServiceBuilder\ResponseCache;
 
 class NullResponseCache implements ResponseCache {
