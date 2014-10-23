@@ -336,7 +336,7 @@ $promise->when(function(\Exception $error = null, Response $response = null) use
         return;
     }
 
-    if ($operation->shouldResponseBeCached($originalRequest, $response)) {
+    if ($operation->shouldResponseBeCached($response)) {
         $this->responseCache->storeResponse($originalRequest, $response);
     }
 
