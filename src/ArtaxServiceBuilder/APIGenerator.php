@@ -340,14 +340,14 @@ $promise->when(function(\Exception $error = null, Response $response = null) use
         $this->responseCache->storeResponse($originalRequest, $response);
     }
 
-    if ($operation->shouldUseCachedResponse($originalRequest, $response)) {
+    if ($operation->shouldUseCachedResponse($response)) {
         $cachedResponse = $this->responseCache->getResponse($originalRequest);
         if ($cachedResponse) {
             $response = $cachedResponse; 
         }
     }
 
-    $responseException = $operation->translateResponseToException($originalRequest, $response);
+    $responseException = $operation->translateResponseToException($response);
     if ($responseException) {
         $callback($responseException, null, $response);
         return;
