@@ -82,10 +82,6 @@ class FileResponseCache implements ResponseCache {
                 }
             }
         }
-        
-        if (count($headers) == 0) {
-            echo "hmm";
-        }
 
         return $headers;
     }
@@ -110,6 +106,7 @@ class FileResponseCache implements ResponseCache {
         $cacheFilename = $this->calculateRequestFilename($request);
         $data = serialize($response);
         $directory = dirname($cacheFilename);
+        //@TODO - error detection? 
         @mkdir($directory, 0755, true);
         file_put_contents($cacheFilename, $data);
     }
