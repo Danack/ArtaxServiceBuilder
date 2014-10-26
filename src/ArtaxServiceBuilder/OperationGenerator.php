@@ -383,7 +383,7 @@ END;
             }
 
             $body .= sprintf(
-                '$value = $this->getFilteredParameter(\'%s\');'.PHP_EOL,
+                '    $value = $this->getFilteredParameter(\'%s\');'.PHP_EOL,
                 $operationParameter->getName()
             );
             $closeSkipBlock = '';

@@ -532,10 +532,12 @@ END;
         $requiredParamsStringsWithDollar[] = '$this';
         
         foreach($requiredParameters as $requiredParam) {
+            $translatedParam = ucfirst($this->translateParameter($requiredParam->getName()));
             if (array_key_exists($requiredParam->getName(), $apiParameters) == true) {
                 $requiredParamsStringsWithDollar[] = sprintf(
                     '$this->get%s()',
-                    ucfirst($requiredParam->getName())
+                    //ucfirst($requiredParam->getName())
+                    $translatedParam
                 );
             }
             else {

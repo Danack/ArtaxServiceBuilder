@@ -4,7 +4,7 @@ namespace ArtaxServiceBuilder\Service;
 
 //Originally from https://github.com/guzzle/oauth-subscriber
 
-use Artax\Request;
+use Amp\Artax\Request;
 use ArtaxServiceBuilder\ArtaxServiceException;
 
 
@@ -178,12 +178,21 @@ class Oauth1
         $params = [];
         
         if ($this->shouldPostFieldsBeSigned($request)) {
+            //@TODO - not implemented
             $formFields = $request->getFormFields();
             $params += $formFields;
         }
 
         // Parse & add query string parameters as base string parameters
-        $queryString = Query::fromString((string)$request->getQuery());
+        //$queryString = Query::fromString((string)$request->getQuery());
+
+        $uri = $request->getUri();
+        $queryString = '';
+        if ($questionMark = strpos($uri, '?')) {
+            $queryString = substr($uri, $questionMark + 1);
+        }
+
+        $queryString = Query::fromString($queryString);
         $params += $queryString->getParams();
 
         return $params;
@@ -228,7 +237,7 @@ class Oauth1
      * This will allow for multiple requests in parallel with the same exact
      * timestamp to use separate nonce's.
      *
-     * @param \Artax\Request $request Request to generate a nonce for
+     * @param \Amp\Artax\Request $request Request to generate a nonce for
      *
      * @return string
      */
@@ -244,7 +253,7 @@ class Oauth1
      * the request elements into a single string. The string is used as an
      * input in hashing or signing algorithms.
      *
-     * @param \Artax\Request $request Request being signed
+     * @param \Amp\Artax\Request $request Request being signed
      * @param array            $params  Associative array of OAuth parameters
      *
      * @return string Returns the base string
@@ -255,12 +264,20 @@ class Oauth1
         // Remove query params from URL. Ref: Spec: 9.1.2.
         //TODO - remove params properly, not this hack method
         $request = clone $request;
-        $request->setQueryFields([]);
-        $url = $request->getUri();
+//        $request->setQueryFields([]);
+
+        $uri = $request->getUri();
+        $queryString = '';
+        if ($questionMark = strpos($uri, '?')) {
+            $uri = substr($uri, 0, $questionMark);
+            $request->setUri($uri);
+        }
+
+//        $url = $request->getUri();
         $query = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
 
         return strtoupper($request->getMethod())
-            . '&' . rawurlencode($url)
+            . '&' . rawurlencode($uri)
             . '&' . rawurlencode($query);
     }
 
