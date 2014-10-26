@@ -154,7 +154,7 @@ class OperationGenerator {
             $translatedParam = $this->apiGenerator->translateParameter($paramName);
             $setString = <<< END
 if (array_key_exists('%s', \$params)) {
-     \$this->parameters['%s'] = \$params['%s'];
+    \$this->parameters['%s'] = \$params['%s'];
 }
 END;
             $body .= sprintf($setString, $translatedParam, $paramName, $translatedParam);
@@ -383,7 +383,7 @@ END;
             }
 
             $body .= sprintf(
-                '    $value = $this->getFilteredParameter(\'%s\');'.PHP_EOL,
+                '$value = $this->getFilteredParameter(\'%s\');'.PHP_EOL,
                 $operationParameter->getName()
             );
             $closeSkipBlock = '';
