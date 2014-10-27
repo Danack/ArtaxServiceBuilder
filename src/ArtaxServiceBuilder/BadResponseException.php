@@ -5,11 +5,6 @@ namespace ArtaxServiceBuilder;
 class BadResponseException extends \Exception {
 
     /**
-     * @var \Amp\Artax\Request
-     */
-    private $request;
-
-    /**
      * @var \Amp\Artax\Response
      */
     private $response;
@@ -17,13 +12,6 @@ class BadResponseException extends \Exception {
     public function __construct($message = "", \Amp\Artax\Response $response, $code = 0, \Exception $previous = null) {
         parent::__construct($message, $code, $previous);
         $this->response = $response;
-    }
-
-    /**
-     * @return \Amp\Artax\Request
-     */
-    public function getRequest() {
-        return $this->request;
     }
 
     /**

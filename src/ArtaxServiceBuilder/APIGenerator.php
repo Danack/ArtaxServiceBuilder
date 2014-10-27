@@ -361,7 +361,7 @@ $promise->when(function(\Exception $error = null, Response $response = null) use
             $callback(null, $parsedResponse, $response);
         }
         catch(\Exception $e) {
-            $exception = new \Exception("Exception parsing response: ".$e->getMessage(), 0, $e);
+            $exception = new ProcessResponseException("Exception parsing response: ".$e->getMessage(), 0, $e);
             $callback($exception, null, $response);
         }
     }
@@ -640,6 +640,7 @@ END;
         $this->addUseStatement('Amp\Artax\Response');
         //$this->addUseStatement('ArtaxServiceBuilder\ArtaxServiceException');
         $this->addUseStatement('ArtaxServiceBuilder\BadResponseException');
+        $this->addUseStatement('ArtaxServiceBuilder\ProcessResponseException');
 
         return $operationGenerator;
     }
@@ -656,7 +657,7 @@ END;
     }
 
     /**
-     * @throws \Exception
+     * @throws APIBuilderException
      */
     function sanityCheck() {
 

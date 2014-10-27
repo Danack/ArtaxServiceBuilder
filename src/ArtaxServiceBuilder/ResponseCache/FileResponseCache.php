@@ -108,7 +108,15 @@ class FileResponseCache implements ResponseCache {
         $directory = dirname($cacheFilename);
         //@TODO - error detection? 
         @mkdir($directory, 0755, true);
-        file_put_contents($cacheFilename, $data);
+        
+        
+        
+        $stored = file_put_contents($cacheFilename, $data);
+        
+        if ($stored === false) {
+            throw new \Exception("Failed to write to file cache file $cacheFilename.");
+        }
+        
     }
 }
 
