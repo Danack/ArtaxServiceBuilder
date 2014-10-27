@@ -3,7 +3,7 @@
 
 namespace ArtaxServiceBuilder\Service;
 
-use Artax\Request;
+use Amp\Artax\Request;
 
 class FlickrOauth1 extends \ArtaxServiceBuilder\Service\Oauth1 {
     /**
@@ -27,8 +27,12 @@ class FlickrOauth1 extends \ArtaxServiceBuilder\Service\Oauth1 {
         }
 
         // Don't sign POST fields if the request uses POST fields and no files
-        if ($request->getFileCount() == 0) {
-            $returnValue = false;
+        $body = $request->getBody();
+        
+        if ($body instanceof \Amp\Artax\FormBody) {
+            if ($body == 0) {
+                $returnValue = false;
+            }
         }
 
         return $returnValue;

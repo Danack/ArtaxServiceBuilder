@@ -154,7 +154,7 @@ class OperationGenerator {
             $translatedParam = $this->apiGenerator->translateParameter($paramName);
             $setString = <<< END
 if (array_key_exists('%s', \$params)) {
-     \$this->parameters['%s'] = \$params['%s'];
+    \$this->parameters['%s'] = \$params['%s'];
 }
 END;
             $body .= sprintf($setString, $translatedParam, $paramName, $translatedParam);
@@ -347,10 +347,10 @@ END;
                     //TODO - this is wrong...they should be stored in just $params, then copied to query params
                     //if they are actually sent in the query.
                     $body .= sprintf(
-                            "\$queryParameters['%s'] = \$this->api->get%s();",
-                            ucfirst($apiParameter),
-                            $translatedParam
-                        ).PHP_EOL;
+                        "\$queryParameters['%s'] = \$this->api->get%s();".PHP_EOL,
+                        ucfirst($apiParameter),
+                        $translatedParam
+                    );
                     $hasQueryParams = true;
                 }
             }
@@ -376,7 +376,7 @@ END;
                     'if (array_key_exists(\'%s\', $this->parameters) == true) {'.PHP_EOL,
                     $operationParameter->getName()
                 );
-                $indent = '   ';
+                $indent = '    ';
             }
             else {
                 $indent = '';
@@ -461,6 +461,15 @@ END;
             $translatedParam = $this->apiGenerator->translateParameter($parameter->getName());
             $methodGenerator = new MethodGenerator('set'.ucfirst($translatedParam));
             $body = sprintf('$this->parameters[\'%s\'] = $%s;', $parameter->getName(), $translatedParam);
+            $body .= "\n\n";
+            $body .= 'return $this;';
+
+            $tags = [];
+            $docBlockTest = "Set $translatedParam";
+            $description = trim($parameter->getDescription());
+            $tags[] = new GenericTag('return', '$this');
+            $docBlock = new DocBlockGenerator($docBlockTest, $description, $tags);
+            $methodGenerator->setDocBlock($docBlock);
             $methodGenerator->setBody($body);
             $methodGenerator->setParameter($translatedParam);
             $this->classGenerator->addMethodFromGenerator($methodGenerator);
