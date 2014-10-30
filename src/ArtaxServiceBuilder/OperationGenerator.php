@@ -621,9 +621,12 @@ END;
     function addExecuteAsyncMethod() {
         $body  = $this->generateCreateFragment();
         $body .= 'return $this->dispatchAsync($request, $callable);';
-        $docBlock = $this->generateExecuteDocBlock('Execute the operation asynchronously, passing the parsed response to the callback');
-        $callableParamGenerator = new ParameterGenerator('callable', 'callable');
 
+        $docBlock = new DocBlockGenerator('Execute the operation asynchronously, passing the parsed response to the callback', null);
+        $tags[] = new GenericTag('return', '\Amp\Promise');
+        $docBlock->setTags($tags);
+
+        $callableParamGenerator = new ParameterGenerator('callable', 'callable');
         $methodGenerator = new MethodGenerator('executeAsync');
         $methodGenerator->setBody($body);
         $methodGenerator->setDocBlock($docBlock);
