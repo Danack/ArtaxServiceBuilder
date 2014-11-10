@@ -25,6 +25,15 @@ class OperationDefinition {
     
     function __construct() {
     }
+
+    public function extend($newName, $extendDefinition) {
+        $instance = clone $this;
+        $instance->name = $newName;
+        $instance->setOperationParams($extendDefinition);
+
+        return $instance;
+    }
+
     
     function setName($name) {
         $this->name = $name;
@@ -150,13 +159,9 @@ class OperationDefinition {
         $this->url = $baseURL;
     }
 
-    /**
-     * @param $description
-     */
-    function setFromServiceDescription($description, $baseURL, APIGenerator $api) {
-
+    private function setOperationParams($description) {
         $operationParams = [
-            "extends", 
+            "extends",
             "httpMethod",
             "needsSigning",
             'permissions',
@@ -172,13 +177,15 @@ class OperationDefinition {
                 $this->{$simpleParam} = $description[$simpleParam];
             }
         }
+    }
 
+    private function setURI($description, $baseURL){
         //Yep, guzzle switches between baseURL and URI
         //@TODO - allow URL or URI in both.
         if (isset($description['uri'])) {
-            
-            if (stripos($description['uri'], 'http') === 0 || 
-                (isset($description['uriIsAbsolute']) && $description['uriIsAbsolute'])) {
+            if (stripos($description['uri'], 'http') === 0 ||
+                (isset($description['uriIsAbsolute']) && $description['uriIsAbsolute'])
+            ) {
                 //It's an absolute URL
                 $this->setURL($description['uri']);
             }
@@ -187,7 +194,12 @@ class OperationDefinition {
                 $this->setURL($baseURL.$description['uri']);
             }
         }
+    }
 
+    /**
+     * @param $description
+     */
+    private function setParams($description, APIGenerator $api) {
         if (isset($description["parameters"])) {
             foreach ($description["parameters"] as $paramName => $parameterDescription) {
 
@@ -202,16 +214,20 @@ class OperationDefinition {
                     $isAPIParameter
                 );
 
-                //TODO - should a warning be given when a paramter overrides another?
-//                if(isset($this->parameters[$paramName])) {
-//                    echo "over-riding param $paramName".PHP_EOL;
-//                }
-                
                 $this->parameters[$paramName] = $parameter;
             }
         }
     }
-//    
+    
+    /**
+     * @param $description
+     */
+    function setFromServiceDescription($description, $baseURL, APIGenerator $api) {
+        $this->setOperationParams($description);
+        $this->setURI($description, $baseURL);
+        $this->setParams($description, $api);
+    }
+    
 //    TODO - make the param generation functions be on this class, rather
 //    than spread between the api and operation generator.
 }

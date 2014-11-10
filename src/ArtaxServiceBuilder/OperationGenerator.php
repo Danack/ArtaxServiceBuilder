@@ -102,14 +102,14 @@ class OperationGenerator {
         $requiredProperties = [
             'api' => '\\'.$this->apiClassname,
             'parameters' => 'array',
-            'response' => '\Amp\Artax\Response'
-
+            'response' => '\Amp\Artax\Response',
+            'originalResponse'  => '\Amp\Artax\Response', 
         ];
 
         //TODO - deal with clashes between this and bits of the actual api
         foreach ($requiredProperties as $propertyName => $typehint) {
             $propertyGenerator = new PropertyGenerator($propertyName, null);
-            $docBlock = new DocBlockGenerator('@var $api '.$typehint);
+            $docBlock = new DocBlockGenerator('@var '.$typehint);
             $propertyGenerator->setDocBlock($docBlock);
             $this->classGenerator->addPropertyFromGenerator($propertyGenerator);
         }
@@ -956,6 +956,40 @@ END;
     }
 
 
+
+    public function addSetOriginalResponseMethod() {
+        $body = '$this->originalResponse = $response;';
+
+        $docBlock = new DocBlockGenerator('Set the original response. This may be different from the cached response if one is used.');
+
+        $methodGenerator = $this->createMethodGenerator(
+            'setOriginalResponse',
+            $body,
+            $docBlock,
+            [['response', 'Amp\Artax\Response']]
+        );
+
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
+
+    /**
+     * 
+     */
+    public function addGetOriginalResponseMethod() {
+        $body = 'return $this->originalResponse;';
+        $docBlock = new DocBlockGenerator('Get the original response. This may be different from the cached response if one is used.');
+
+        $methodGenerator = $this->createMethodGenerator(
+            'getOriginalResponse',
+            $body,
+            $docBlock,
+            [],
+            '\Amp\Artax\Response'
+        );
+
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
+
     /**
      * 
      */
@@ -1048,6 +1082,8 @@ END;
         $this->addTranslateResponseToExceptionMethod();
         $this->addShouldUseCachedResponseMethod();
         $this->addShouldResponseBeCachedMethod();
+        $this->addSetOriginalResponseMethod();
+        $this->addGetOriginalResponseMethod();
         
 
         $this->classGenerator->setImplementedInterfaces(['ArtaxServiceBuilder\Operation']);

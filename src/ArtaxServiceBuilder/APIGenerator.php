@@ -18,6 +18,7 @@ use Danack\Code\Generator\DocBlock\Tag\ThrowsTag;
 
 
 use Danack\Code\Generator\PropertyGenerator;
+use GithubService\GithubArtaxService\GithubArtaxServiceException;
 
 function getNamespace($namespaceClass) {
 
@@ -233,6 +234,56 @@ class APIGenerator {
     function setOperationNamespace($operationNamespace) {
         $this->operationNamespace = $operationNamespace;
     }
+
+    public function addPaginationMethods($methodMatcher, $basePaginationOperationName) {
+
+        if (isset($this->operations[$basePaginationOperationName]) == false) {
+            throw new ArtaxServiceException("Could not find base pagination operation '$basePaginationOperationName'.");
+        }
+        
+        $basePaginationOperation = $this->operations[$basePaginationOperationName];
+        $methodMatcherPattern = '#'.$methodMatcher.'#';
+
+        foreach ($this->operations as $operation) {
+            if ($operation->getName() === $basePaginationOperationName) {
+                //Avoid yo' dawging the  $basePaginationOperation
+                continue;
+            }
+            
+            $match = preg_match($methodMatcherPattern, $operation->getName());
+            
+            if (!$match) {
+                continue;
+            }
+            
+            if (strtoupper($operation->getHttpMethod()) !== "GET") {
+                //It's only sensible to add pagination to GET methods.
+                continue;
+            }
+
+            if (!$operation->getResponseClass()) {
+                continue;
+            }
+
+            $params = ["responseClass" => $operation->getResponseClass()];
+
+            $newName = $operation->getName()."Paginate";
+            
+            if (isset($this->operations[$newName])) {
+                //Don't overwrite user created operations.
+                continue;
+            }
+
+            $pageOperation = $basePaginationOperation->extend(
+                $newName,
+                $params
+            );
+            $this->addOperation($newName, $pageOperation);
+        }
+    }
+
+    
+    
     
     /**
      * 
@@ -331,6 +382,7 @@ $promise->when(function(\Exception $error = null, Response $response = null) use
 
     if ($response) {
         $operation->setResponse($response);
+        $operation->setOriginalResponse($response);
     }
 
     if($error) {
@@ -345,7 +397,8 @@ $promise->when(function(\Exception $error = null, Response $response = null) use
     if ($operation->shouldUseCachedResponse($response)) {
         $cachedResponse = $this->responseCache->getResponse($originalRequest);
         if ($cachedResponse) {
-            $response = $cachedResponse; 
+            $response = $cachedResponse;
+            $operation->setResponse($response);
         }
     }
 
@@ -382,9 +435,13 @@ END;
         );
         $tags[] = new GenericTag(
             'param',
-            'callable $callback The callback to call on completion/response. Parameters should be blah blah blah'
+            'callable $callback The callback to call on completion/response. The signature of the method should be:
+function(
+    \Exception $error = null, // null if no error 
+    $parsedData = null, //The parsed operation data i.e. same type as responseClass of the operation.
+    \Amp\Artax\Response $response = null //The response received or null if the request completely failed.
+)'
         );
-
 
         $tags[] = new GenericTag(
             'return',
@@ -465,6 +522,7 @@ $response = $promise->wait();
 
 if ($response) {
     $operation->setResponse($response);
+    $operation->setOriginalResponse($response);
 }
 
 if ($operation->shouldResponseBeCached($response)) {
@@ -474,7 +532,8 @@ if ($operation->shouldResponseBeCached($response)) {
 if ($operation->shouldUseCachedResponse($response)) {
     $cachedResponse = $this->responseCache->getResponse($originalRequest);
     if ($cachedResponse) {
-        $response = $cachedResponse; 
+        $response = $cachedResponse;
+        $operation->setResponse($response);
     }
     //@TODO This code should only be reached if the cache entry was deleted
     //so throw an exception? Or just leave the 304 to error?
@@ -502,7 +561,7 @@ END;
      * @param $methodName
      * @param $functionDefintion
      */
-    function addMethod($methodName, OperationDefinition $operation) {
+    function addOperation($methodName, OperationDefinition $operation) {
         $this->operations[$methodName] = $operation;
     }
 
@@ -993,9 +1052,7 @@ END;
 
         $operation->setName($operationName);
         $operation->setURL($baseURL);//Do this first, as it can be overwritten
-        //TODO use Artax\URI
-        
-        
+
         $operation->setFromServiceDescription($operationDescription, $baseURL, $this);
 
         return $operation;
@@ -1008,7 +1065,7 @@ END;
      * @throws APIBuilderException
      */
     function parseAndAddServiceFromFile($serviceFilename) {
-        $service = require_once($serviceFilename);
+        $service = require $serviceFilename;
 
         if ($service == false) {
             throw new APIBuilderException("Failed to open service file `$serviceFilename`.");
@@ -1035,11 +1092,34 @@ END;
         foreach ($service["operations"] as $operationName => $operationDescription) {
             if ($this->shouldOperationBeGenerated($operationName)) {
                 $operation = $this->createOperationDescription($service, $operationName, $baseURL);
-                $this->addMethod($operation->getName(), $operation);
+                $this->addOperation($operation->getName(), $operation);
             }
         }
     }
 
+    /**
+     * @param string $serviceFilename
+     * @return OperationDefinition[]
+     * @throws APIBuilderException
+     */
+    function parseServiceFile($serviceFilename) {
+
+        $service = require $serviceFilename;
+        $operations = [];
+
+        $baseURL = null;
+
+        if (isset($service["baseUrl"])) {
+            $baseURL = $service["baseUrl"];
+        }
+
+        foreach ($service["operations"] as $operationName => $operationDescription) {
+            $operations[] = $this->createOperationDescription($service, $operationName, $baseURL);
+        }
+
+        return $operations;
+    }
+    
 
     /**
      * 
