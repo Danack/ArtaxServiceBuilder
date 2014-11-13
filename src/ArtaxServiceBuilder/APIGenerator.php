@@ -1045,6 +1045,7 @@ END;
 
 
     /**
+     * Parses a service file and adds all the operations to this
      * @param $serviceFilename
      * @return array
      * @throws APIBuilderException
