@@ -635,10 +635,13 @@ END;
      * 
      */
     private function generateMethods() {
-        foreach ($this->operations as $methodName => $operation) {
-            $operationGenerator = $this->generateOperationClass($methodName, $operation);
+        foreach ($this->operations as $operationName => $operation) {
+            if (!$this->shouldOperationBeGenerated($operationName)) {
+                continue;
+            }
 
-            $this->addOperationGetter($methodName, $operation, $operationGenerator);
+            $operationGenerator = $this->generateOperationClass($operationName, $operation);
+            $this->addOperationGetter($operationName, $operation, $operationGenerator);
         }
     }
 
@@ -842,7 +845,6 @@ END;
                 $shouldInclude = false;
             }
         }
-        
 
         return $shouldInclude;
     }
@@ -1091,10 +1093,10 @@ END;
         }
 
         foreach ($service["operations"] as $operationName => $operationDescription) {
-            if ($this->shouldOperationBeGenerated($operationName)) {
+            //if ($this->shouldOperationBeGenerated($operationName)) {
                 $operation = $this->createOperationDescription($service, $operationName, $baseURL);
                 $this->addOperation($operation->getName(), $operation);
-            }
+            //}
         }
     }
 
