@@ -52,11 +52,24 @@ class Parameter {
             }
         }
 
+        if (isset($parameterDescription['required'])) {
+            if (!$parameterDescription['required']) {
+                $parameter->isOptional = true;
+            }
+        }
+
+        
+        
+        
         if (isset($parameterDescription['default'])) {
             $parameter->hasDefault = true;
             $parameter->defaultValue = $parameterDescription['default'];
             $parameter->isOptional = true;
         }
+
+
+        
+        
 
         if (isset($parameterDescription['description'])) {
             $parameter->description = $parameterDescription['description'];

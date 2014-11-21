@@ -203,6 +203,13 @@ class OperationDefinition {
         if (isset($description["parameters"])) {
             foreach ($description["parameters"] as $paramName => $parameterDescription) {
 
+                //DJA - temp hack to remove unsupported multiple params
+                // e.g. "question_{index}"
+                if (strpos($paramName, '{') !== false) {
+                    continue;
+                }
+                //DJA - temp hack to remove unsupported multiple params
+                
                 $isAPIParameter = false;
                 if (array_key_exists($paramName, $api->getAPIParameters())) {
                     $isAPIParameter = true;

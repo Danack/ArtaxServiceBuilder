@@ -5,7 +5,7 @@ Creates a library to consume an API from a Guzzle-like service description.
 ## Why?
 
 Writing a service to consume an HTTP API is not a fun task. Either there will be a lot of tedious boilerplate code that need to be written for each operation in the API, or you write the operations as generic methods that lose all type information.
-
+ 
 
 Not only is writing the library in the first place not a fun task, but maintaining it when the HTTP API provider adds methods or subtly changes existing methods is also tedious.
 
