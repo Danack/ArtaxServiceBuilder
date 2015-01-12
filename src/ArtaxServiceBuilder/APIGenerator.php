@@ -235,6 +235,11 @@ class APIGenerator {
         $this->operationNamespace = $operationNamespace;
     }
 
+    /**
+     * @param $methodMatcher
+     * @param $basePaginationOperationName
+     * @throws ArtaxServiceException
+     */
     public function addPaginationMethods($methodMatcher, $basePaginationOperationName) {
 
         if (isset($this->operations[$basePaginationOperationName]) == false) {
@@ -518,7 +523,7 @@ $originalRequest = clone $request;
 $cachingHeaders = $this->responseCache->getCachingHeaders($request);
 $request->setAllHeaders($cachingHeaders);
 $promise = $this->client->request($request);
-$response = $promise->wait();
+$response = \Amp\wait($promise);
 
 if ($response) {
     $operation->setResponse($response);
@@ -636,9 +641,10 @@ END;
      */
     private function generateMethods() {
         foreach ($this->operations as $methodName => $operation) {
-            $operationGenerator = $this->generateOperationClass($methodName, $operation);
-
-            $this->addOperationGetter($methodName, $operation, $operationGenerator);
+            if ($this->shouldOperationBeGenerated($methodName)) {
+                $operationGenerator = $this->generateOperationClass($methodName, $operation);
+                $this->addOperationGetter($methodName, $operation, $operationGenerator);
+            }
         }
     }
 
@@ -699,7 +705,6 @@ END;
         $operationGenerator->generate();
         $this->addUseStatement($operationGenerator->getFQCN());
         $this->addUseStatement('Amp\Artax\Response');
-        //$this->addUseStatement('ArtaxServiceBuilder\ArtaxServiceException');
         $this->addUseStatement('ArtaxServiceBuilder\BadResponseException');
         $this->addUseStatement('ArtaxServiceBuilder\ProcessResponseException');
 
@@ -1083,18 +1088,14 @@ END;
      * @throws APIBuilderException
      */
     function parseAndAddService(array $service) {
-
         $baseURL = null;
-
         if (isset($service["baseUrl"])) {
             $baseURL = $service["baseUrl"];
         }
 
         foreach ($service["operations"] as $operationName => $operationDescription) {
-            if ($this->shouldOperationBeGenerated($operationName)) {
-                $operation = $this->createOperationDescription($service, $operationName, $baseURL);
-                $this->addOperation($operation->getName(), $operation);
-            }
+            $operation = $this->createOperationDescription($service, $operationName, $baseURL);
+            $this->addOperation($operation->getName(), $operation);
         }
     }
 
