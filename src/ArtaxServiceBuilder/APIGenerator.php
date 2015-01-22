@@ -3,13 +3,22 @@
 
 namespace ArtaxServiceBuilder;
 
+
 use Danack\Code\Generator\ClassGenerator;
+use Danack\Code\Generator\GeneratorInterface;
 use Danack\Code\Generator\DocBlockGenerator;
 use Danack\Code\Generator\InterfaceGenerator;
 use Danack\Code\Generator\MethodGenerator;
 use Danack\Code\Generator\ParameterGenerator;
+use Danack\Code\Generator\AbstractMemberGenerator;
 use Danack\Code\Generator\DocBlock\Tag\GenericTag;
+use Danack\Code\Generator\DocBlock\Tag\ParamTag;
+use Danack\Code\Generator\DocBlock\Tag\ReturnTag;
+use Danack\Code\Generator\DocBlock\Tag\ThrowsTag;
+
+
 use Danack\Code\Generator\PropertyGenerator;
+use GithubService\GithubArtaxService\GithubArtaxServiceException;
 
 function getNamespace($namespaceClass) {
 
@@ -226,6 +235,11 @@ class APIGenerator {
         $this->operationNamespace = $operationNamespace;
     }
 
+    /**
+     * @param $methodMatcher
+     * @param $basePaginationOperationName
+     * @throws ArtaxServiceException
+     */
     public function addPaginationMethods($methodMatcher, $basePaginationOperationName) {
 
         if (isset($this->operations[$basePaginationOperationName]) == false) {
@@ -273,44 +287,49 @@ class APIGenerator {
         }
     }
 
-
+    
+    
+    
     /**
      * 
      */
     function addConstructorMethod() {
-        $methodGenerator = new MethodGenerator('__construct');
-        $body = '';
-        $params = [];
+        if (count($this->constructorParams)) {
+            $methodGenerator = new MethodGenerator('__construct');
 
-        //Every API needs the Amp\Artax\Client object to send requests
-        $param = new ParameterGenerator('client', 'Amp\Artax\Client', null);
-        $params[] = $param;
-        $body .= '$this->client = $client;'.PHP_EOL;
+            $body = '';
+            $params = [];
 
-        $param = new ParameterGenerator('responseCache', 'ArtaxServiceBuilder\ResponseCache', null);
-        $params[] = $param;
-        $body .= '$this->responseCache = $responseCache;'.PHP_EOL;
-
-        //Add the params
-        foreach ($this->constructorParams as $constructorParam) {
-            $param = new ParameterGenerator($constructorParam);
+            //Every API needs the Amp\Artax\Client object to send requests
+            $param = new ParameterGenerator('client', 'Amp\Artax\Client', null);
             $params[] = $param;
-            $body .= sprintf('$this->%s = $%s;', $constructorParam, $constructorParam);
-            $body .= PHP_EOL;
-        }
+            $body .= '$this->client = $client;'.PHP_EOL;
 
-        //Add an oauth signing service if the API needs one
-        if ($this->requiresOauth1 == true) {
-            $param = new ParameterGenerator('oauthService', 'ArtaxServiceBuilder\Service\Oauth1', null);
-            $param->setDefaultValue(null);
+            $param = new ParameterGenerator('responseCache', 'ArtaxServiceBuilder\ResponseCache', null);
             $params[] = $param;
-            $body .= sprintf('$this->%s = $%s;', 'oauthService', 'oauthService');
-            $body .= PHP_EOL;
-        }
+            $body .= '$this->responseCache = $responseCache;'.PHP_EOL;
 
-        $methodGenerator->setBody($body);
-        $methodGenerator->setParameters($params);
-        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+            //Add the params
+            foreach ($this->constructorParams as $constructorParam) {
+                $param = new ParameterGenerator($constructorParam);
+                $params[] = $param;
+                $body .= sprintf('$this->%s = $%s;', $constructorParam, $constructorParam);
+                $body .= PHP_EOL;
+            }
+
+            //Add an oauth signing service if the API needs one
+            if ($this->requiresOauth1 == true) {
+                $param = new ParameterGenerator('oauthService', 'ArtaxServiceBuilder\Service\Oauth1', null);
+                $param->setDefaultValue(null);
+                $params[] = $param;
+                $body .= sprintf('$this->%s = $%s;', 'oauthService', 'oauthService');
+                $body .= PHP_EOL;
+            }
+
+            $methodGenerator->setBody($body);
+            $methodGenerator->setParameters($params);
+            $this->classGenerator->addMethodFromGenerator($methodGenerator);
+        }
     }
     
 
@@ -504,7 +523,7 @@ $originalRequest = clone $request;
 $cachingHeaders = $this->responseCache->getCachingHeaders($request);
 $request->setAllHeaders($cachingHeaders);
 $promise = $this->client->request($request);
-$response = $promise->wait();
+$response = \Amp\wait($promise);
 
 if ($response) {
     $operation->setResponse($response);
@@ -621,13 +640,11 @@ END;
      * 
      */
     private function generateMethods() {
-        foreach ($this->operations as $operationName => $operation) {
-            if (!$this->shouldOperationBeGenerated($operationName)) {
-                continue;
+        foreach ($this->operations as $methodName => $operation) {
+            if ($this->shouldOperationBeGenerated($methodName)) {
+                $operationGenerator = $this->generateOperationClass($methodName, $operation);
+                $this->addOperationGetter($methodName, $operation, $operationGenerator);
             }
-
-            $operationGenerator = $this->generateOperationClass($operationName, $operation);
-            $this->addOperationGetter($operationName, $operation, $operationGenerator);
         }
     }
 
@@ -688,7 +705,6 @@ END;
         $operationGenerator->generate();
         $this->addUseStatement($operationGenerator->getFQCN());
         $this->addUseStatement('Amp\Artax\Response');
-        //$this->addUseStatement('ArtaxServiceBuilder\ArtaxServiceException');
         $this->addUseStatement('ArtaxServiceBuilder\BadResponseException');
         $this->addUseStatement('ArtaxServiceBuilder\ProcessResponseException');
 
@@ -804,6 +820,7 @@ END;
     }
 
 
+
     /**
      * @param $operationName
      * @return bool
@@ -830,6 +847,7 @@ END;
                 $shouldInclude = false;
             }
         }
+        
 
         return $shouldInclude;
     }
@@ -877,9 +895,7 @@ END;
         return $docBlock;
     }
 
-    /**
-     * 
-     */
+    
     function addShouldResponseBeProcessedMethod() {
         $body = 'return true;';
         $docBlock = $this->generateExecuteDocBlock('Determine whether the response should be processed.', 'boolean');
@@ -920,6 +936,7 @@ END;
 
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
+
 
 
     /**
@@ -978,7 +995,7 @@ END;
     /**
      *
      */
-    function addTranslateResponseToExceptionMethod() {
+    function addtranslateResponseToExceptionMethod() {
         $body = <<< 'END'
 $status = $response->getStatus();
 if ($status < 200 || $status >= 300) {
@@ -1066,47 +1083,19 @@ END;
         $this->parseAndAddService($service);
     }
 
-
-    /**
-     * Parses a service file and adds all the operations to this
-     * @param $serviceFilename
-     * @return array
-     * @throws APIBuilderException
-     */
-    function parseAndAddServiceFromJsonFile($serviceFilename) {
-        $text = file_get_contents($serviceFilename);
-    
-        if ($text == false) {
-            throw new APIBuilderException("Failed to open service file `$serviceFilename`.");
-        }
-    
-        $service = json_decode($text, true);
-    
-        if (is_array($service) == false) {
-            throw new APIBuilderException("json decode of `$serviceFilename` did not return a service array. Cannot build API from it.");
-        }
-    
-        $this->parseAndAddService($service);
-    }
-
-
     /**
      * @param array $service
      * @throws APIBuilderException
      */
     function parseAndAddService(array $service) {
-
         $baseURL = null;
-
         if (isset($service["baseUrl"])) {
             $baseURL = $service["baseUrl"];
         }
 
         foreach ($service["operations"] as $operationName => $operationDescription) {
-            //if ($this->shouldOperationBeGenerated($operationName)) {
-                $operation = $this->createOperationDescription($service, $operationName, $baseURL);
-                $this->addOperation($operation->getName(), $operation);
-            //}
+            $operation = $this->createOperationDescription($service, $operationName, $baseURL);
+            $this->addOperation($operation->getName(), $operation);
         }
     }
 
@@ -1222,7 +1211,7 @@ END;
         
         
         //$this->addIsErrorResponseMethod();
-        $this->addTranslateResponseToExceptionMethod();
+        $this->addtranslateResponseToExceptionMethod();
         $text = $this->classGenerator->generate();
         saveFile($this->outputPath, $this->fqcn, $text);
     }
