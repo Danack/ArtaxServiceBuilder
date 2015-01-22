@@ -304,7 +304,11 @@ class APIGenerator {
             $param = new ParameterGenerator('client', 'Amp\Artax\Client', null);
             $params[] = $param;
             $body .= '$this->client = $client;'.PHP_EOL;
-
+            
+            $param = new ParameterGenerator('reactor', 'Amp\Reactor', null);
+            $params[] = $param;
+            $body .= '$this->reactor = $reactor;'.PHP_EOL;
+            
             $param = new ParameterGenerator('responseCache', 'ArtaxServiceBuilder\ResponseCache', null);
             $params[] = $param;
             $body .= '$this->responseCache = $responseCache;'.PHP_EOL;
@@ -523,7 +527,7 @@ $originalRequest = clone $request;
 $cachingHeaders = $this->responseCache->getCachingHeaders($request);
 $request->setAllHeaders($cachingHeaders);
 $promise = $this->client->request($request);
-$response = \Amp\wait($promise);
+$response = \Amp\wait($promise, $this->reactor);
 
 if ($response) {
     $operation->setResponse($response);
@@ -1158,6 +1162,7 @@ END;
         }
 
         $nativeProperties['responseCache'] = 'ArtaxServiceBuilder\ResponseCache';
+        $nativeProperties['reactor'] = 'Amp\Reactor';
 
         $allProperties = [$this->apiParameters, $nativeProperties];
 
@@ -1188,7 +1193,8 @@ END;
 
         $this->classGenerator->addUse('Amp\Artax\Request');
         $this->classGenerator->addUse('Amp\Artax\Response');
-        
+        $this->classGenerator->addUse('Amp\Reactor');
+
         $this->sanityCheck();
         $this->addProperties([]);
         $this->addConstructorMethod();
