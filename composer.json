@@ -8,10 +8,6 @@
         { 
             "type": "composer", 
             "url": "http://satis.basereality.com"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/Danack/DanackCode"
         }
     ],
 
@@ -19,10 +15,11 @@
         "fzaninotto/faker": "*",
         "mockery/mockery": "0.9.1",
         "phpunit/phpunit": "4.1.3",
-        "danack/auryn": "~0.9.5"
+        "danack/auryn": "~0.9.5",
+        "danack/danackhttp2": "~1.2.0"
     },
     "require":{
-        "danack/danack-code": ">=2.4.4"
+        "danack/danack-code": "~2.4.4"
     },
     "autoload": {
         "psr-0": {
