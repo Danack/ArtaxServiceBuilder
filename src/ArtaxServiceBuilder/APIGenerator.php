@@ -601,21 +601,23 @@ END;
         
         foreach($requiredParameters as $requiredParam) {
             $translatedParam = ucfirst($this->translateParameter($requiredParam->getName()));
+            $normalizedParamName = normalizeParamName($requiredParam->getName());
+            
+            
             if (array_key_exists($requiredParam->getName(), $apiParameters) == true) {
                 $requiredParamsStringsWithDollar[] = sprintf(
                     '$this->get%s()',
-                    //ucfirst($requiredParam->getName())
                     $translatedParam
                 );
             }
             else {
-                $paramsStrings[] = $requiredParam->getName();
+                $paramsStrings[] = $normalizedParamName;
                 $tags[] = new GenericTag(
                     'param',
                     $requiredParam->getType().' $'.$requiredParam->getName().' '.$requiredParam->getDescription()
                 );
                 //TODO - replace with array_map on $paramsStrings
-                $requiredParamsStringsWithDollar[] = '$'.$requiredParam->getName();
+                $requiredParamsStringsWithDollar[] = '$'.$normalizedParamName;
             }
         }
 

@@ -41,6 +41,11 @@ function createParamTag(ParameterGenerator $parameter, $description) {
     return $tag;
 }
 
+//TODO - move this somewhere sensible
+function normalizeParamName($name) {
+    return lcfirst($name);
+}
+
 class OperationGenerator {
 
     private $className;
@@ -489,6 +494,8 @@ END;
         $methodGenerator = new MethodGenerator('__construct');
         $defaultParams = $this->operationDefinition->getDefaultParams();
 
+        
+        
         $body = '';
         if (count($defaultParams)) {
             $body = '$defaultParams = ['.PHP_EOL;
@@ -505,12 +512,13 @@ END;
         $body .= '$this->api = $api;'.PHP_EOL;
 
         foreach ($requiredParameters as $param) {
-            $constructorParams[] = $param->getName();
+            $normalizedParamName = normalizeParamName($param->getName());
+            $constructorParams[] = $normalizedParamName;
 
             $body .= sprintf(
                 "\$this->parameters['%s'] = $%s;".PHP_EOL,
                 $param->getName(),
-                $param->getName()
+                $normalizedParamName //$param->getName()
             );
         }
         
