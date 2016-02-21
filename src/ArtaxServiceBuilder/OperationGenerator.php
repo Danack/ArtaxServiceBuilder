@@ -564,6 +564,14 @@ END;
         if ($responseCallable) {
             throw new \Exception("This is not implemented yet.");
         }
+        else if (true) {
+            //Hard-code this for now.
+            $body .= <<< END
+${indent}\$instance = \$this->api->instantiateResult(\$response, \$this);
+
+${indent}return \$instance;
+END;
+        }
         else if ($responseFactory) {
             //Response is turned by $responseFactory into $responseClass
             $body .= <<< END
@@ -998,6 +1006,30 @@ END;
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
 
+    
+    public function addGetResultInstantiationInfoMethod()
+    {
+        $body = '    return null';
+        $responseClass = $this->operationDefinition->getResponseClass();
+        if ($responseClass) {
+            $responseClass = addslashes($responseClass);
+            $body = <<< BODY
+        return ['instantiate' => '$responseClass'];
+BODY;
+        }
+
+        $docBlock = new DocBlockGenerator('Return how the result of this operation should be instantiated.');
+        $methodGenerator = $this->createMethodGenerator(
+            'getResultInstantiationInfo',
+            $body,
+            $docBlock,
+            [],
+            '\Amp\Artax\Response'
+        );
+
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
+
     /**
      * 
      */
@@ -1092,7 +1124,7 @@ END;
         $this->addShouldResponseBeCachedMethod();
         $this->addSetOriginalResponseMethod();
         $this->addGetOriginalResponseMethod();
-        
+        $this->addGetResultInstantiationInfoMethod();
 
         $this->classGenerator->setImplementedInterfaces(['ArtaxServiceBuilder\Operation']);
         $this->classGenerator->setFQCN($fqcn);

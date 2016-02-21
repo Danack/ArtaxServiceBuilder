@@ -971,6 +971,22 @@ END;
         $this->classGenerator->addMethodFromGenerator($methodGenerator);
     }
 
+    function addAbstractInstantiateResultMethod() {
+
+        //$docBlock = $this->generateExecuteDocBlock('Determine whether the cached response should be used.', 'boolean');
+        $parameters = [];
+        $parameters[] = new ParameterGenerator('response', 'Amp\Artax\Response');
+        $parameters[] = new ParameterGenerator('operation', 'ArtaxServiceBuilder\Operation');
+      
+        $methodGenerator = new MethodGenerator('instantiateResult');
+        $methodGenerator->setParameters($parameters);
+        //$methodGenerator->setDocBlock($docBlock);
+        $methodGenerator->setAbstract(true);
+        
+        $this->classGenerator->addMethodFromGenerator($methodGenerator);
+    }
+
+    
     /**
      * 
      */
@@ -1209,6 +1225,7 @@ END;
         }
         
         $this->classGenerator->addUse('ArtaxServiceBuilder\ResponseCache');
+        $this->classGenerator->setAbstract(true);
 
         $this->generateExceptionClass();
         $this->addExecMethod();
@@ -1216,7 +1233,7 @@ END;
         $this->addShouldResponseBeProcessedMethod();
         $this->addShouldResponseBeCachedMethod();
         $this->addShouldUseCachedResponseMethod();
-        
+        $this->addAbstractInstantiateResultMethod();
         
         //$this->addIsErrorResponseMethod();
         $this->addtranslateResponseToExceptionMethod();

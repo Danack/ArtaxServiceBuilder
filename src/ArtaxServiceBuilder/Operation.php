@@ -46,4 +46,7 @@ interface Operation {
      * @return \Amp\Artax\Response 
      */
     public function getOriginalResponse();
+    
+    public function getResultInstantiationInfo();
+    
 } 
