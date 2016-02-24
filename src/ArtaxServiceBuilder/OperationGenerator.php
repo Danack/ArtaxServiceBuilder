@@ -1009,7 +1009,7 @@ END;
     
     public function addGetResultInstantiationInfoMethod()
     {
-        $body = '    return null';
+        $body = '    return null;';
         $responseClass = $this->operationDefinition->getResponseClass();
         if ($responseClass) {
             $responseClass = addslashes($responseClass);
