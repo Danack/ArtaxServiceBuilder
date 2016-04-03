@@ -476,7 +476,10 @@ END;
             $docBlock = new DocBlockGenerator($docBlockTest, $description, $tags);
             $methodGenerator->setDocBlock($docBlock);
             $methodGenerator->setBody($body);
-            $methodGenerator->setParameter($translatedParam);
+            
+            $parameterGenerator = new ParameterGenerator($translatedParam, $parameter->getType());
+            
+            $methodGenerator->setParameter($parameterGenerator);
             $this->classGenerator->addMethodFromGenerator($methodGenerator);
         }
 
@@ -513,7 +516,8 @@ END;
 
         foreach ($requiredParameters as $param) {
             $normalizedParamName = normalizeParamName($param->getName());
-            $constructorParams[] = $normalizedParamName;
+
+            $constructorParams[] = new ParameterGenerator($normalizedParamName, $param->getType());
 
             $body .= sprintf(
                 "\$this->parameters['%s'] = $%s;".PHP_EOL,
@@ -521,6 +525,8 @@ END;
                 $normalizedParamName //$param->getName()
             );
         }
+        
+        
         
         $methodGenerator->setParameters($constructorParams);
         $methodGenerator->setBody($body);
@@ -675,29 +681,41 @@ END;
             if (is_array($filter)) {
                 $text .= $i2.'$args = [];'.PHP_EOL;
 
-                if (is_array($filter['args']) == false) {
-                    throw new \ArtaxServiceBuilder\APIBuilderException("Filter args should be an array instead received ".var_export($filter['args'], true));
-                }
-                
-                // Convert complex filters that hold value place holders
-                foreach ($filter['args'] as $data) {
-                    if ($data == '@value') {
-                        $text .= $i2.'$args[] = $value;'.PHP_EOL;
+                if (isset($filter['args']) == true) {
+                    if (is_array($filter['args']) == false) {
+                        throw new \ArtaxServiceBuilder\APIBuilderException("Filter args should be an array instead received ".var_export($filter['args'],
+                                true
+                            )
+                        );
                     }
-                    elseif ($data == '@api') {
-                        $text .= $i2."\$args[] = \$this->\$api;".PHP_EOL;
-                    }
-                    else {
-                        //It should be a string
-                        $text .= $i2."\$args[] = $data;".PHP_EOL;
+
+                    // Convert complex filters that hold value place holders
+                    foreach ($filter['args'] as $data) {
+                        if ($data == '@value') {
+                            $text .= $i2.'$args[] = $value;'.PHP_EOL;
+                        }
+                        elseif ($data == '@api') {
+                            $text .= $i2."\$args[] = \$this->\$api;".PHP_EOL;
+                        }
+                        else {
+                            //It should be a string
+                            $text .= $i2."\$args[] = $data;".PHP_EOL;
+                        }
                     }
                 }
 
+//                $text .= sprintf(
+//                    //TODO - we can do better than call_user_func_array
+//                    $i2.'$value = call_user_func_array(\'%s\', $args);'.PHP_EOL,
+//                    $filter['method']
+//                );
+
+                //hard-code for now 2016-02-28
                 $text .= sprintf(
-                    //TODO - we can do better than call_user_func_array
-                    $i2.'$value = call_user_func_array(\'%s\', $args);'.PHP_EOL,
+                    $i2.'$value = call_user_func_array([$value, \'%s\'], $args);'.PHP_EOL,
                     $filter['method']
                 );
+
             }
             else {
                 //TODO - get rid of call_user_func

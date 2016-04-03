@@ -6,13 +6,15 @@ namespace ArtaxServiceBuilder\ResponseCache;
 use Amp\Artax\Request;
 use Amp\Artax\Response;
 use ArtaxServiceBuilder\ResponseCache;
+use ArtaxServiceBuilder\ResponseCache\FileCachePath;
 
 class FileResponseCache implements ResponseCache {
 
     private $cacheDirectory;
 
-    public function __construct($cacheDirectory) {
-        $this->cacheDirectory = $cacheDirectory;
+    public function __construct(FileCachePath $cacheDirectory)
+    {
+        $this->cacheDirectory = $cacheDirectory->getPath();
     }
 
     /**
